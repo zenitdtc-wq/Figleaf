@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShieldScan — Live Threat Intelligence</title>
+<style>
+:root{
+  --bg:#080c14;--surface:#0d1220;--surface2:#131826;--surface3:#181f30;
+  --border:#1e2535;--border2:#263040;
+  --text:#e2e8f8;--text-muted:#6b7a9e;--text-dim:#36405a;
+  --green:#22d3a0;--gs:rgba(34,211,160,.1);
+  --yellow:#f5c842;--ys:rgba(245,200,66,.1);
+  --red:#f04060;--rs:rgba(240,64,96,.1);
+  --blue:#4f8ef5;--bs:rgba(79,142,245,.1);
+  --purple:#a78bfa;--ps:rgba(167,139,250,.1);
+  --orange:#fb923c;--os:rgba(251,146,60,.1);
+  --r:12px;--rsm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(8,12,20,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:4px;overflow-x:auto;}
+.nav-logo{font-size:14px;font-weight:800;color:var(--green);padding:14px 20px 14px 0;border-right:1px solid var(--border);margin-right:4px;white-space:nowrap;text-decoration:none;}
+.nav-link{padding:14px 14px;font-size:13px;font-weight:500;color:var(--text-muted);text-decoration:none;white-space:nowrap;transition:color .15s;border-bottom:2px solid transparent;}
+.nav-link:hover,.nav-link.active{color:var(--text);border-bottom-color:var(--green);}
+.nav-back{margin-left:auto;padding:7px 14px;font-size:12px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text-muted);text-decoration:none;white-space:nowrap;transition:all .15s;flex-shrink:0;}
+.nav-back:hover{border-color:var(--green);color:var(--green);}
+
+/* LAYOUT */
+.shell{max-width:1020px;margin:0 auto;padding:0 24px 80px;}
+.page-header{padding:48px 0 36px;}
+.pg-tag{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+.pg-title{font-size:clamp(28px,5vw,46px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
+.pg-title .hi{background:linear-gradient(135deg,var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.pg-sub{font-size:15px;color:var(--text-muted);max-width:600px;line-height:1.65;margin-bottom:20px;}
+.last-updated{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* SECTION */
+.sec{margin-bottom:52px;}
+.sec-tag{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;}
+.sec-title{font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px;}
+.sec-sub{font-size:14px;color:var(--text-muted);margin-bottom:20px;}
+
+/* SEVERITY MAP */
+.sev-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:32px;}
+.sev-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);padding:14px;text-align:center;transition:border-color .2s;}
+.sev-card:hover{border-color:var(--border2);}
+.sev-score{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:2px;}
+.sev-label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-muted);}
+.sev-bar{height:3px;border-radius:2px;margin-top:8px;}
+
+/* THREAT CARDS */
+.threat-feed{display:flex;flex-direction:column;gap:12px;}
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:border-color .2s;}
+.tcard:hover{border-color:var(--border2);}
+.tcard-top{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;cursor:pointer;}
+.tcard-top:hover{background:var(--surface2);}
+.tc-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+.tc-icon{font-size:22px;flex-shrink:0;}
+.tc-info{flex:1;min-width:0;}
+.tc-name{font-size:15px;font-weight:800;letter-spacing:-.2px;margin-bottom:3px;}
+.tc-type{font-size:12px;color:var(--text-muted);}
+.tc-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.badge-red{background:var(--rs);color:var(--red);border:1px solid rgba(240,64,96,.2);}
+.badge-orange{background:var(--os);color:var(--orange);border:1px solid rgba(251,146,60,.2);}
+.badge-yellow{background:var(--ys);color:var(--yellow);border:1px solid rgba(245,200,66,.2);}
+.badge-purple{background:var(--ps);color:var(--purple);border:1px solid rgba(167,139,250,.2);}
+.badge-blue{background:var(--bs);color:var(--blue);border:1px solid rgba(79,142,245,.2);}
+.badge-green{background:var(--gs);color:var(--green);border:1px solid rgba(34,211,160,.2);}
+.tc-chevron{color:var(--text-dim);transition:transform .2s;font-size:13px;flex-shrink:0;margin-left:8px;}
+.tcard.open .tc-chevron{transform:rotate(90deg);}
+.tcard-body{display:none;padding:0 20px 20px;}
+.tcard.open .tcard-body{display:block;}
+.tcard-divider{height:1px;background:var(--border);margin-bottom:16px;}
+
+/* Body layout */
+.tc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px;}
+.tc-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:13px;}
+.tb-head{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:7px;}
+.tb-head.red{color:var(--red);}
+.tb-head.orange{color:var(--orange);}
+.tb-head.yellow{color:var(--yellow);}
+.tb-head.green{color:var(--green);}
+.tb-head.blue{color:var(--blue);}
+.tb-head.purple{color:var(--purple);}
+.tc-list{list-style:none;}
+.tc-list li{font-size:13px;color:var(--text-muted);padding:3px 0;display:flex;gap:7px;line-height:1.5;}
+.tc-list li::before{flex-shrink:0;margin-top:1px;}
+.tc-list.how li::before{content:'⚙';}
+.tc-list.signs li::before{content:'⚠';}
+.tc-list.defend li::before{content:'🛡';}
+.tc-list.targets li::before{content:'🎯';}
+.tc-list.caps li::before{content:'📡';}
+.tc-list.detect li::before{content:'🔍';}
+
+.perm-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.ptag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;}
+.p-crit{background:var(--rs);color:var(--red);}
+.p-high{background:var(--os);color:var(--orange);}
+.p-med{background:var(--ys);color:var(--yellow);}
+
+.tc-alert{display:flex;gap:10px;padding:10px 12px;border-radius:var(--rsm);margin-top:8px;border:1px solid;font-size:13px;}
+.tc-alert.red{background:var(--rs);border-color:rgba(240,64,96,.2);color:var(--text);}
+.tc-alert.yellow{background:var(--ys);border-color:rgba(245,200,66,.2);color:var(--text);}
+.tc-alert.green{background:var(--gs);border-color:rgba(34,211,160,.2);color:var(--text);}
+.tc-alert-icon{flex-shrink:0;font-size:16px;}
+.tc-alert strong{display:block;margin-bottom:2px;font-size:12px;}
+
+/* DETECTION TOOLS */
+.tool-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px;}
+.tool-top{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tool-top h3{font-size:15px;font-weight:700;}
+.tool-top p{font-size:13px;color:var(--text-muted);margin-top:2px;}
+.tool-body{padding:18px 20px;}
+.btn{padding:10px 20px;border-radius:var(--rsm);font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:7px;}
+.btn-primary{background:var(--green);color:#050d0a;}
+.btn-primary:hover{background:#2febb5;}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--green);color:var(--green);}
+.btn-red{background:var(--rs);color:var(--red);border:1px solid rgba(240,64,96,.2);}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+
+/* USSD */
+.ussd-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:14px;margin-bottom:12px;}
+.ussd-code{font-size:20px;font-weight:800;font-family:'SF Mono','Fira Code',monospace;color:var(--yellow);letter-spacing:2px;margin-bottom:6px;}
+.ussd-desc{font-size:13px;color:var(--text-muted);line-height:1.55;}
+.ussd-result{margin-top:10px;padding:10px;border-radius:var(--rsm);font-size:13px;font-weight:600;display:none;}
+.ussd-result.danger{background:var(--rs);color:var(--red);border:1px solid rgba(240,64,96,.2);}
+.ussd-result.safe{background:var(--gs);color:var(--green);border:1px solid rgba(34,211,160,.2);}
+
+/* FINGERPRINTER */
+.fp-stage{display:none;}
+.fp-stage.active{display:block;}
+.fp-q{margin-bottom:14px;}
+.fp-q-text{font-size:14px;font-weight:600;margin-bottom:10px;}
+.fp-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:500px){.fp-options{grid-template-columns:1fr;}}
+.fp-opt{background:var(--surface2);border:2px solid var(--border);border-radius:var(--rsm);padding:10px 12px;cursor:pointer;font-size:13px;color:var(--text-muted);transition:all .15s;text-align:left;}
+.fp-opt:hover{border-color:var(--border2);color:var(--text);}
+.fp-opt.selected{border-color:var(--blue);color:var(--text);background:var(--bs);}
+.fp-progress{display:flex;gap:4px;margin-bottom:20px;}
+.fp-pip{height:3px;flex:1;border-radius:2px;background:var(--border);transition:background .3s;}
+.fp-pip.done{background:var(--green);}
+.fp-pip.active{background:var(--blue);}
+.fp-result{display:none;}
+.fp-result.show{display:block;}
+.fp-match{background:var(--surface2);border:2px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;}
+.fp-match.high-match{border-color:var(--red);}
+.fp-match.med-match{border-color:var(--yellow);}
+.fp-match.low-match{border-color:var(--border2);}
+.fp-match-score{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;float:right;}
+.fp-match-name{font-size:15px;font-weight:800;margin-bottom:6px;clear:both;}
+.fp-match-desc{font-size:13px;color:var(--text-muted);line-height:1.55;margin-bottom:10px;}
+.fp-match-action{font-size:13px;font-weight:600;color:var(--yellow);}
+
+/* HEATMAP */
+.hmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:4px;margin-bottom:20px;}
+.hmap-cell{aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:default;transition:transform .15s;}
+.hmap-cell:hover{transform:scale(1.05);}
+.hmap-cell .cell-icon{font-size:18px;margin-bottom:2px;}
+
+/* LIVE INDICATOR */
+.live-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:20px;font-size:13px;color:var(--text-muted);}
+
+@media(max-width:600px){.shell{padding:0 14px 60px;}.tc-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">🛡 ShieldScan</a>
+  <a class="nav-link" href="index.html">Scanner</a>
+  <a class="nav-link" href="threats.html">Attack Vectors</a>
+  <a class="nav-link active" href="intel.html">Live Intel</a>
+  <a class="nav-back" href="index.html">← Run Scanner</a>
+</nav>
+
+<div class="shell">
+  <div class="page-header">
+    <div class="pg-tag">Threat Intelligence Database</div>
+    <h1 class="pg-title">Active <span class="hi">malware & spyware</span><br>tracked in 2025–2026</h1>
+    <p class="pg-sub">Every entry below is documented from live security research, breach disclosures, and published CVEs. Each family is currently active or was confirmed active within the last 12 months.</p>
+    <div class="last-updated"><div class="live-dot"></div> Last updated: May 2026 · Sources: TechCrunch, The Hacker News, Malwarebytes, Zscaler, iVerify, Citizen Lab</div>
+  </div>
+
+  <!-- ── SEVERITY HEATMAP ── -->
+  <div class="sec" id="heatmap">
+    <div class="sec-tag">Threat Severity Overview</div>
+    <h2 class="sec-title">Current Risk Landscape</h2>
+    <p class="sec-sub">Severity scores based on: scale of victims affected, stealth capability, data access depth, and ease of deployment.</p>
+    <div class="sev-grid" id="sev-grid"></div>
+    <div class="live-bar">
+      <span class="live-dot"></span>
+      <span><strong style="color:var(--text);">8 active threat families</strong> tracked · 3 involve zero-click or dropper delivery · 2 are commercially sold on Telegram with full customer support panels</span>
+    </div>
+  </div>
+
+  <!-- ── THREAT FEED ── -->
+  <div class="sec" id="feed">
+    <div class="sec-tag">Documented Threat Families</div>
+    <h2 class="sec-title">Active Malware Database</h2>
+    <p class="sec-sub">Click any entry to expand full technical profile, detection method, and defence steps.</p>
+    <div class="threat-feed" id="threat-feed"></div>
+  </div>
+
+  <!-- ── DETECTION TOOLS ── -->
+  <div class="sec" id="tools">
+    <div class="sec-tag">Active Detection Tools</div>
+    <h2 class="sec-title">Run Detection Checks</h2>
+    <p class="sec-sub">These tools apply specific signatures and techniques discovered in security research to check your device.</p>
+
+    <!-- USSD Detection -->
+    <div class="tool-card">
+      <div class="tool-top">
+        <div>
+          <h3>📞 USSD Stalkerware Revealer</h3>
+          <p>Secret dial codes that force hidden stalkerware apps to surface. Discovered in the Cocospy/Spyic breach disclosure (Feb 2025).</p>
+        </div>
+        <div class="badge badge-red">Confirmed effective</div>
+      </div>
+      <div class="tool-body">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;">Stalkerware developers build in a backdoor code so the person who planted the app can retrieve it. Security researchers found that these codes also expose the app to victims. Open your <strong style="color:var(--text);">Phone/Dialler app</strong>, type each code below, and press <strong style="color:var(--text);">Call</strong>. If an app appears that you don't recognise — it's spyware.</p>
+
+        <div class="ussd-box">
+          <div class="ussd-code">✱✱001✱✱</div>
+          <div class="ussd-desc"><strong style="color:var(--text);">Cocospy / Spyic / Spyzie</strong> — The most widely deployed Android stalkerware family (2025). Disguises as "System Service". Exposed ~2.7 million victims before going offline May 2025. This code forces it to appear.</div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="markUSSD('u1','found')">⚠ App appeared</button>
+            <button class="btn btn-ghost" onclick="markUSSD('u1','clear')">✓ Nothing appeared</button>
+          </div>
+          <div id="u1" class="ussd-result"></div>
+        </div>
+
+        <div class="ussd-box">
+          <div class="ussd-code">✱12345✱</div>
+          <div class="ussd-desc"><strong style="color:var(--text);">TheTruthSpy family</strong> — Persistent stalkerware platform active since 2017, still exposing victims in August 2025 via a new vulnerability. Multiple rebrand variants (Copy9, MxSpy, iSpyoo). Uses this code to surface its UI.</div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="markUSSD('u2','found')">⚠ App appeared</button>
+            <button class="btn btn-ghost" onclick="markUSSD('u2','clear')">✓ Nothing appeared</button>
+          </div>
+          <div id="u2" class="ussd-result"></div>
+        </div>
+
+        <div class="ussd-box">
+          <div class="ussd-code">✱#✱#4636#✱#✱</div>
+          <div class="ussd-desc"><strong style="color:var(--text);">Android Testing Menu</strong> — Not a stalkerware code, but opens the hidden device info menu. Check <em>Usage statistics</em> for apps running in background with high activity you don't recognise. Legitimate system diagnostic tool.</div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="markUSSD('u3','info')">📋 Opened — reviewing app usage</button>
+          </div>
+          <div id="u3" class="ussd-result"></div>
+        </div>
+
+        <div class="tc-alert red" style="margin-top:4px;">
+          <div class="tc-alert-icon">⚠️</div>
+          <div><strong>If any stalkerware appears:</strong> Do NOT close or uninstall it immediately if you are in a dangerous domestic situation. Contact the <a href="https://stopstalkerware.org" target="_blank" style="color:var(--red);">Coalition Against Stalkerware</a> first for safety guidance — sudden removal can escalate situations.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Malware Fingerprinter -->
+    <div class="tool-card">
+      <div class="tool-top">
+        <div>
+          <h3>🔬 Malware Family Fingerprinter</h3>
+          <p>Answer 6 questions about what you've observed. The tool matches your symptoms against the 8 documented threat families to identify the most likely infection.</p>
+        </div>
+      </div>
+      <div class="tool-body">
+        <div class="fp-progress" id="fp-progress"></div>
+        <div id="fp-stages"></div>
+        <div class="fp-result" id="fp-result"></div>
+        <div class="btn-row" id="fp-controls">
+          <button class="btn btn-primary" id="fp-next" onclick="fpNext()" style="display:none;">Next →</button>
+          <button class="btn btn-ghost" onclick="fpReset()">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase C2 Pattern Check -->
+    <div class="tool-card">
+      <div class="tool-top">
+        <div>
+          <h3>🌐 Command & Control Traffic Indicators</h3>
+          <p>ZeroDayRAT, AhMyth, and Anubis all use Firebase or Telegram as their C2. Here's how to detect that traffic on your device.</p>
+        </div>
+      </div>
+      <div class="tool-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px;">
+          <div class="tc-box">
+            <div class="tb-head orange">Firebase C2 Fingerprint</div>
+            <ul class="tc-list caps">
+              <li>Domain: <code style="font-size:11px;background:var(--surface);padding:1px 5px;border-radius:4px;">*.firebaseio.com</code></li>
+              <li>Domain: <code style="font-size:11px;background:var(--surface);padding:1px 5px;border-radius:4px;">*.firebase.google.com</code></li>
+              <li>Port: 443 (HTTPS), persistent long-polling connections</li>
+              <li>Used by: ZeroDayRAT, AhMyth, Anubis (2025–2026 variants)</li>
+              <li>Red flag: Firebase traffic from an app that has no visible cloud feature</li>
+            </ul>
+          </div>
+          <div class="tc-box">
+            <div class="tb-head purple">Telegram Bot C2 Fingerprint</div>
+            <ul class="tc-list caps">
+              <li>Domain: <code style="font-size:11px;background:var(--surface);padding:1px 5px;border-radius:4px;">api.telegram.org</code></li>
+              <li>Polling endpoint: <code style="font-size:11px;background:var(--surface);padding:1px 5px;border-radius:4px;">/bot[token]/getUpdates</code></li>
+              <li>Used by: ZeroDayRAT, AsyncRAT variants, several banking trojans</li>
+              <li>Red flag: Telegram API traffic from a non-messaging app, especially at night</li>
+            </ul>
+          </div>
+          <div class="tc-box">
+            <div class="tb-head green">How to check on your device</div>
+            <ul class="tc-list defend">
+              <li><strong>Android:</strong> Settings → Network → Data Usage → sort apps by Mobile Data. Look for spikes in apps that shouldn't need the internet</li>
+              <li><strong>iOS:</strong> Settings → Mobile Data → scroll to app list, check unusual data consumers</li>
+              <li><strong>Advanced:</strong> Use NetGuard (Android, free) or LittleSnitch (iOS) to see per-app traffic in real time</li>
+              <li>Any app sending data regularly at 2–5 minute intervals while idle = strong spyware indicator</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SparkCat OCR Check -->
+    <div class="tool-card">
+      <div class="tool-top">
+        <div>
+          <h3>📸 SparkCat / SparkKitty Exposure Check</h3>
+          <p>SparkCat scans your photo gallery using OCR to find cryptocurrency wallet seed phrases. Check if you're exposed.</p>
+        </div>
+        <div class="badge badge-red">Active April 2026</div>
+      </div>
+      <div class="tool-body">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;">SparkCat's OCR engine specifically looks for images containing 12–24 word mnemonic seed phrases (used to recover crypto wallets). Answer the questions below to assess your exposure level.</p>
+        <div id="sparkcat-check"></div>
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-primary" onclick="runSparkCheck()">Check My Exposure</button>
+          <button class="btn btn-ghost" onclick="resetSparkCheck()">Reset</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tools sec -->
+
+  <!-- PROTECTION MATRIX -->
+  <div class="sec" id="protect">
+    <div class="sec-tag">Protection Matrix</div>
+    <h2 class="sec-title">One action kills multiple threats</h2>
+    <p class="sec-sub">The highest-leverage security steps, ranked by how many active threat families each one neutralises.</p>
+    <div id="protect-matrix"></div>
+  </div>
+
+</div><!-- /shell -->
+
+<footer style="text-align:center;padding:32px 24px;border-top:1px solid var(--border);color:var(--text-dim);font-size:12px;line-height:1.8;">
+  Sources: <a href="https://techcrunch.com/2025/02/20/stalkerware-apps-cocospy-spyic-exposing-phone-data-of-millions-of-people/" style="color:var(--text-muted);text-decoration:none;">TechCrunch — Cocospy/Spyic</a> ·
+  <a href="https://thehackernews.com/2026/02/new-zerodayrat-mobile-spyware-enables.html" style="color:var(--text-muted);text-decoration:none;">Hacker News — ZeroDayRAT</a> ·
+  <a href="https://thehackernews.com/2025/07/anatsa-android-banking-trojan-hits.html" style="color:var(--text-muted);text-decoration:none;">Hacker News — Anatsa</a> ·
+  <a href="https://www.malwarebytes.com/blog/news/2025/05/stalkerware-apps-go-dark-after-data-breach" style="color:var(--text-muted);text-decoration:none;">Malwarebytes</a> ·
+  <a href="https://iverify.io/blog/breaking-down-zerodayrat---new-spyware-targeting-android-and-ios" style="color:var(--text-muted);text-decoration:none;">iVerify</a> ·
+  <a href="https://www.zscaler.com/blogs/security-research/industry-attacks-surge-mobile-malware-spreads-threatlabz-2025-mobile-iot-ot" style="color:var(--text-muted);text-decoration:none;">Zscaler ThreatLabz 2025</a><br>
+  ShieldScan · All detection tools run locally. No data sent to any server. ·
+  <a href="index.html" style="color:var(--text-muted);text-decoration:none;">← Return to scanner</a>
+</footer>
+
+<script>
+// ══════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════
+
+const THREATS = [
+  {
+    id:'zerodayrat',
+    icon:'🕹️',
+    name:'ZeroDayRAT',
+    type:'Commercial RAT / Surveillance Platform',
+    severity:97,
+    year:'Feb 2026',
+    platform:['Android','iOS'],
+    badgeColor:'badge-red',
+    badgeLabel:'CRITICAL',
+    spread:'Telegram (commercial sale)',
+    price:'$2,000 one-time / subscription panel',
+    victims:'Sold openly — victim count unknown',
+    how:[
+      'Sold on Telegram in 5 languages with customer support and update channels',
+      'Delivered as a disguised APK (Android) or via MDM profile (iOS)',
+      'Uses Google Firebase for C2 command delivery — blends with legitimate app traffic',
+      'Admin panel: web dashboard giving buyer live control of target phone',
+      'Clipboard hijacker substitutes crypto wallet addresses to reroute transactions',
+    ],
+    caps:[
+      'Live camera and microphone feeds (real-time)',
+      'Screen recording and keylogging with per-app context',
+      'Full SMS access including incoming OTP/2FA codes from banks',
+      'GPS tracking with real-time coordinates',
+      'Notification capture from all apps',
+      'Crypto wallet stealer: MetaMask, Trust Wallet, Binance, Coinbase',
+      'Targets Android 5–16 and iOS up to version 26',
+    ],
+    signs:[
+      'Firebase traffic from apps you don\'t recognise (api.firebase.google.com)',
+      'Telegram API traffic from a non-messaging app',
+      'Battery drain with regular small data uploads every 2–5 minutes',
+      'Crypto transactions being sent to wrong wallet addresses',
+      '2FA codes from your bank being used by someone else',
+    ],
+    detect:[
+      'Check data usage — Settings → Network/Mobile Data. Any non-network app making regular connections is suspicious',
+      'iOS: App Privacy Report (Settings → Privacy) shows which apps are accessing mic, camera, and making network requests',
+      'Android: Enable developer mode → running services — look for unnamed or duplicated processes',
+      'Factory reset is the most reliable remediation — ZeroDayRAT achieves persistence via device admin rights',
+    ],
+    defend:[
+      'Never install APKs from Telegram, SMS links, or outside official app stores',
+      'Revoke Device Administrator access from any app you don\'t recognise: Settings → Security → Device Admin Apps',
+      'Use a hardware authenticator (YubiKey) or authenticator app — ZeroDayRAT specifically targets SMS-based 2FA',
+      'Enable Google Play Protect and keep it scanning: Play Store → Profile → Play Protect',
+      'Monitor crypto wallet addresses — never paste and assume; type the first/last 4 characters manually to verify',
+    ],
+    permissions:['BIND_DEVICE_ADMIN','READ_SMS','RECORD_AUDIO','CAMERA','ACCESS_FINE_LOCATION','FOREGROUND_SERVICE'],
+    permLevels:['p-crit','p-crit','p-crit','p-crit','p-high','p-med'],
+    alert:{ type:'red', text:'ZeroDayRAT is a commercial product with active developer support. It receives regular updates to evade new AV signatures. Standard antivirus is often insufficient — behaviour-based detection is required.' }
+  },
+  {
+    id:'anubis',
+    icon:'🏛️',
+    name:'Anubis Banking Trojan',
+    type:'Banking Trojan / RAT — Android',
+    severity:92,
+    year:'Active 2025 (evolved)',
+    platform:['Android'],
+    badgeColor:'badge-red',
+    badgeLabel:'CRITICAL',
+    spread:'Fake apps on Google Play, phishing SMS, malicious APK sites',
+    victims:'Targets 394 banking and financial apps globally',
+    how:[
+      'Distributed as fake utility apps, currency converters, game launchers',
+      'Overlay attacks: draws a fake login screen over your real banking app to steal credentials',
+      'Once installed, uses Accessibility Service to monitor all screen activity',
+      'SOCKS5 proxy built-in to route traffic through attacker-controlled infrastructure invisibly',
+      'Registers as Device Administrator to prevent removal',
+    ],
+    caps:[
+      'Intercepts SMS-based OTP codes for MFA bypass',
+      'Keylogger capturing all typed input including passwords',
+      'Screen recording and live audio capture via microphone',
+      'SOCKS5 proxy for covert C2 communication',
+      'GPS tracking and contacts exfiltration',
+      'Ransomware capability: locks screen and demands payment',
+      'Mass SMS sending from victim\'s number',
+      'USSD banking balance queries (checks your bank balance silently)',
+    ],
+    signs:[
+      'Banking apps behaving unusually or showing unexpected login screens',
+      'Unexpected SMS messages sent from your number',
+      'Phone locked with a ransom demand screen',
+      'Accessibility services showing an unrecognised service',
+      'Bank accounts showing transactions you didn\'t make',
+    ],
+    detect:[
+      'Settings → Accessibility → Installed Services — remove anything unrecognised',
+      'Settings → Security → Device Admin Apps — Anubis registers here to resist removal. Revoke, then uninstall',
+      'Google Play Protect scan: Play Store → Profile → Play Protect → Scan',
+      'Check banking app for overlay: if the login screen looks different than usual, close the app immediately',
+    ],
+    defend:[
+      'Install apps only from Google Play — Anubis primarily spreads via side-loaded APKs',
+      'Switch from SMS 2FA to an authenticator app — Anubis specifically intercepts SMS OTPs',
+      'Bank via official banking app, not browser, and verify the UI looks exactly as expected before entering credentials',
+      'Enable Google Play Protect notifications to be alerted when a harmful app is detected',
+    ],
+    permissions:['BIND_ACCESSIBILITY_SERVICE','BIND_DEVICE_ADMIN','READ_SMS','SEND_SMS','RECORD_AUDIO','ACCESS_FINE_LOCATION'],
+    permLevels:['p-crit','p-crit','p-crit','p-high','p-high','p-high'],
+    alert:{ type:'yellow', text:'Anubis currently targets 394 apps — not just banking apps. Cryptocurrency wallets, payment apps (PayPal, CashApp), and email clients are all included in its target list.' }
+  },
+  {
+    id:'ahmyth',
+    icon:'🪤',
+    name:'AhMyth RAT',
+    type:'Remote Access Trojan — Android',
+    severity:85,
+    year:'Active 2025–2026',
+    platform:['Android'],
+    badgeColor:'badge-orange',
+    badgeLabel:'HIGH',
+    spread:'Disguised as screen recorders, games, cryptocurrency tools, utility apps',
+    victims:'Thousands across consumer and enterprise devices',
+    how:[
+      'Distributed as convincing fake apps (screen recorders, games, crypto tools) often on third-party stores',
+      'Requests extensive permissions under the guise of app functionality',
+      'Registers RECEIVE_BOOT_COMPLETED to restart silently after reboot',
+      'Communicates with C2 server over Firebase — blends with normal app traffic',
+    ],
+    caps:[
+      'Keylogging: captures every keystroke including passwords',
+      'Screen capture at configurable intervals',
+      'Live camera access (front and back cameras)',
+      'Live microphone recording',
+      'SMS interception and reading',
+      'Banking credential and MFA code theft',
+      'Cryptocurrency wallet details extraction',
+      'Contacts and file exfiltration',
+    ],
+    signs:[
+      'Screen recorder or game app requesting microphone, SMS, and contact permissions',
+      'Device feels warm when you haven\'t been using it actively',
+      'Camera indicator appearing briefly when device is idle',
+      'Unusual battery drain from a utility app',
+    ],
+    detect:[
+      'Settings → Apps → show system apps — look for screen recorder apps with excessive permissions',
+      'Review all apps with Accessibility access: Settings → Accessibility → Installed Services',
+      'Check camera and microphone permission lists for utility or game apps',
+    ],
+    defend:[
+      'Never install screen recorders or game apps from sources outside Google Play or Apple App Store',
+      'For any utility app asking for SMS + microphone + camera simultaneously: deny and uninstall',
+      'Use Google Play Protect — AhMyth variants are flagged by most major AV engines',
+    ],
+    permissions:['RECORD_AUDIO','CAMERA','READ_SMS','READ_CONTACTS','RECEIVE_BOOT_COMPLETED','ACCESS_FINE_LOCATION'],
+    permLevels:['p-crit','p-crit','p-high','p-high','p-med','p-high'],
+    alert:{ type:'yellow', text:'AhMyth\'s open-source codebase (available on GitHub) means customised variants are created by threat actors constantly. AV signature detection lags behind new variants by days to weeks.' }
+  },
+  {
+    id:'sparkcat',
+    icon:'🔦',
+    name:'SparkCat / SparkKitty',
+    type:'OCR Cryptostealer — Android & iOS',
+    severity:82,
+    year:'Feb 2025 + Apr 2026 variant',
+    platform:['Android','iOS'],
+    badgeColor:'badge-orange',
+    badgeLabel:'HIGH',
+    spread:'Disguised as AI tools, food delivery apps, utility apps — Google Play & App Store',
+    victims:'Thousands of cryptocurrency holders globally',
+    how:[
+      'Hides inside legitimate-looking apps (chat assistants, food delivery wrappers, fake AI tools)',
+      'Requests photo gallery permission under plausible pretence (customer support, image upload)',
+      'Deploys an on-device ML/OCR model (based on Google ML Kit) to read text in every photo',
+      'Specifically hunts for 12–24 word BIP39 mnemonic seed phrases in screenshots',
+      'Exfiltrates matching images to attacker-controlled server over encrypted HTTPS',
+      'New April 2026 variant (SparkKitty) also targets authentication QR codes and PIN screenshots',
+    ],
+    caps:[
+      'OCR-based reading of all text in your photo library',
+      'Targeted extraction of cryptocurrency wallet recovery phrases',
+      'QR code recognition for authentication bypass (SparkKitty variant)',
+      'Silent upload — no visible activity or notification during operation',
+    ],
+    signs:[
+      'AI assistant or food delivery app requesting full photo library access',
+      'Unexpected data uploads shortly after granting photo access',
+      'Cryptocurrency wallet drained without you initiating a transaction',
+      'App that has no editing function requesting photo access "for support"',
+    ],
+    detect:[
+      'iOS: Settings → Privacy → Photos — any app with "Full Access" that isn\'t a photo editor or cloud backup is suspicious',
+      'Android: Settings → Privacy → Permission Manager → Photos and Videos — audit all apps listed',
+      'If you have cryptocurrency: check if you\'ve ever screenshotted a seed phrase — if so, treat that wallet as compromised',
+    ],
+    defend:[
+      'NEVER screenshot your cryptocurrency seed phrase — write it on paper and store it physically',
+      'Grant photo access only to apps that genuinely need it (cameras, editors, cloud backup)',
+      'Use "Select Photos" limited access instead of "All Photos" on iOS when apps request photo permission',
+      'Move any wallet whose seed phrase exists as a screenshot — generate a new wallet and transfer funds',
+    ],
+    permissions:['READ_MEDIA_IMAGES','INTERNET'],
+    permLevels:['p-high','p-med'],
+    alert:{ type:'red', text:'SparkCat requires only ONE permission — photo gallery access — which millions of apps legitimately request. It has passed both Google Play and App Store security reviews. There is no reliable way to detect it by permission alone.' }
+  },
+  {
+    id:'anatsa',
+    icon:'🪆',
+    name:'Anatsa (TeaBot) Banking Trojan',
+    type:'Banking Trojan with Dropper — Android',
+    severity:88,
+    year:'May–July 2025 campaign (90,000 downloads)',
+    platform:['Android'],
+    badgeColor:'badge-red',
+    badgeLabel:'CRITICAL',
+    spread:'Google Play dropper apps (fake PDF readers, document viewers, file managers)',
+    victims:'90,000+ users in 2025 campaign alone; 220,000+ total documented',
+    how:[
+      'Stage 1 (Dropper): Publishes a fully functional, clean app to Google Play (passes security review)',
+      'Waits 4–6 weeks after reaching thousands of downloads and a high store ranking',
+      'Stage 2 (Payload): Pushes a silent update that fetches Anatsa payload from external server',
+      'Payload is disguised as a harmless text or config file to avoid network-level detection',
+      'Dropper logic is hidden inside native .so library files — invisible to static analysis tools',
+      'Once active: exploits Accessibility Services for Device Takeover Fraud (DTO)',
+    ],
+    caps:[
+      'Overlay attacks: fake login screens over real banking apps',
+      'Keylogging via Accessibility Service',
+      'Device Takeover Fraud: initiates real transactions from your device',
+      'Credential theft from 400+ targeted financial apps',
+      'Screen monitoring and automated form-filling for fraud',
+    ],
+    signs:[
+      '"Document Viewer" or "File Manager" app that seemed fine initially, then requested Accessibility access',
+      'Banking app login page looks slightly different than before',
+      'Transactions on your bank account you didn\'t initiate',
+      'Accessibility services showing a document viewer or utility app listed',
+    ],
+    detect:[
+      'Search your installed apps for: "Document Viewer", "File Reader", "PDF Manager" installed from unknown developers',
+      'Package name to check: com.stellarastra.maintainer.astracontrol_managerreadercleaner (2025 campaign)',
+      'Settings → Accessibility → Installed Services — any document app listed here is a red flag',
+      'Run Google Play Protect scan immediately after any utility app installation',
+    ],
+    defend:[
+      'Wait 2 weeks before granting Accessibility access to any newly installed app — dropper campaigns activate after reviews subside',
+      'Immediately uninstall any PDF/document app that requests Accessibility Services permission',
+      'Enable Google Play Protect automated scanning',
+      'Use your bank\'s official dedicated app (not a third-party document viewer) for all financial activity',
+    ],
+    permissions:['BIND_ACCESSIBILITY_SERVICE','INTERNET','REQUEST_INSTALL_PACKAGES','READ_EXTERNAL_STORAGE'],
+    permLevels:['p-crit','p-med','p-crit','p-high'],
+    alert:{ type:'red', text:'Anatsa\'s dropper technique bypasses Google Play\'s automated security review. The dropper app is genuinely clean when submitted — the malicious payload only arrives weeks later. Play Protect cannot catch it at install time.' }
+  },
+  {
+    id:'cocospy',
+    icon:'👁️',
+    name:'Cocospy / Spyic / Spyzie',
+    type:'Stalkerware — Android & iOS',
+    severity:80,
+    year:'Active until May 2025 (now offline; rebrands possible)',
+    platform:['Android','iOS'],
+    badgeColor:'badge-orange',
+    badgeLabel:'HIGH',
+    spread:'Planted manually by someone with physical access to your device',
+    victims:'2.7M+ victims exposed in Feb 2025 breach; Spyzie: 500K+ Android, thousands of iOS',
+    how:[
+      'Requires physical access to victim\'s Android device (and their passcode)',
+      'For iOS: only requires victim\'s iCloud credentials — no physical access needed',
+      'Disguises as a system app called "System Service" — invisible in app drawer',
+      'Continuously uploads: messages, call logs, contacts, photos, location, browser history',
+      'All data accessible via a web dashboard by whoever planted it',
+      'Secret reveal code: dial ✱✱001✱✱ → Call to make it appear',
+    ],
+    caps:[
+      'Real-time location tracking',
+      'Full SMS and iMessage mirroring',
+      'Call log monitoring (numbers, duration)',
+      'Photo and media access',
+      'Browser history and bookmarks',
+      'App usage monitoring',
+      'Keylogging on some Android versions',
+    ],
+    signs:[
+      '"System Service" app appears in app list that you don\'t recall installing',
+      'Dialling ✱✱001✱✱ reveals an unknown app',
+      'Partner or family member knows things they shouldn\'t (location, message content)',
+      'Phone was left unattended with someone who might have had motive to monitor you',
+      'iPhone: unexpected login to your iCloud from an unknown device',
+    ],
+    detect:[
+      'Dial ✱✱001✱✱ and press Call — Cocospy/Spyic will appear if installed',
+      'Android: Settings → Apps → show hidden apps (varies by manufacturer) — look for "System Service" from an unknown developer',
+      'iOS: Settings → [Your Name] → check all devices signed into your Apple ID. Remove any you don\'t recognise',
+      'Change your Apple ID / iCloud password immediately if you suspect iOS stalkerware — it cuts off the data feed',
+    ],
+    defend:[
+      'Use a strong unique passcode on your device — most stalkerware requires physical access',
+      'Enable Face ID / fingerprint so your device can\'t be unlocked without you',
+      'iOS: enable Advanced Data Protection (Settings → Apple ID → iCloud → Advanced Data Protection) — encrypts iCloud data end-to-end',
+      'Change iCloud password from a trusted device if you suspect compromise',
+      'Contact Coalition Against Stalkerware (stopstalkerware.org) if you\'re in an unsafe situation',
+    ],
+    permissions:['BIND_DEVICE_ADMIN','READ_SMS','ACCESS_FINE_LOCATION','READ_CONTACTS','READ_CALL_LOG','CAMERA'],
+    permLevels:['p-crit','p-crit','p-high','p-high','p-high','p-high'],
+    alert:{ type:'red', text:'Cocospy, Spyic and Spyzie went offline in May 2025 after their servers were breached — but their victim data was exposed publicly in the breach. Rebrands under new names are likely. The ✱✱001✱✱ code may not work on successor apps.' }
+  },
+  {
+    id:'paragon',
+    icon:'💎',
+    name:'Paragon Graphite',
+    type:'State-Grade Commercial Spyware',
+    severity:99,
+    year:'First documented Feb 2025 (Citizen Lab)',
+    platform:['Android','iOS'],
+    badgeColor:'badge-red',
+    badgeLabel:'STATE-GRADE',
+    spread:'Zero-click delivery — no user interaction required',
+    victims:'Journalists, activists, civil society members; documented in EU & US (2025)',
+    how:[
+      'Delivered via zero-click exploit — victim receives no notification, clicks nothing',
+      'Believed to arrive via iMessage, WhatsApp, or other messaging app exploit',
+      'Specialty: live access to end-to-end encrypted messaging apps including disappearing content',
+      'Can read Signal, WhatsApp, Telegram messages — including deleted/ephemeral messages — by accessing the app process directly',
+      'Leaves minimal forensic traces — designed to resist Amnesty Tech / Citizen Lab detection methods',
+    ],
+    caps:[
+      'End-to-end encrypted message interception (Signal, WhatsApp, Telegram)',
+      'Disappearing/ephemeral message capture before deletion',
+      'Real-time surveillance with live device access',
+      'Full filesystem access',
+      'Zero-click delivery — no user interaction required',
+    ],
+    signs:[
+      'If you are a journalist, activist, lawyer, or political figure — you are in the target category',
+      'Unexplained battery drain with zero user activity',
+      'Kaspersky\'s new lightweight iOS detection tool (iShutdown) may surface anomalies in the Shutdown.log file',
+      'Unusual process activity visible via iVerify mobile security app',
+    ],
+    detect:[
+      'Run Kaspersky\'s free MVT (Mobile Verification Toolkit) analysis — specifically the Shutdown.log check for iOS',
+      'Install iVerify (Apple App Store) — designed specifically to detect Pegasus/Graphite/Predator class spyware',
+      'Amnesty International\'s tech team offers forensic analysis for journalists and activists: amnesty.org/en/tech',
+      'Regular reboots reduce persistence windows for some variants (though Graphite can survive reboots)',
+    ],
+    defend:[
+      'Enable Lockdown Mode on iPhone (iOS 16+): Settings → Privacy & Security → Lockdown Mode. Blocks most zero-click attack surfaces',
+      'Keep iOS updated immediately — Graphite and Pegasus exploit unpatched vulnerabilities that Apple patches quickly',
+      'Use iVerify for ongoing monitoring if you are a high-risk individual',
+      'Compartmentalise: use a separate device for sensitive conversations',
+    ],
+    permissions:['Zero-click — no permission prompt shown to victim'],
+    permLevels:['p-crit'],
+    alert:{ type:'red', text:'Paragon Graphite is not a threat to the average user — it is expensive state-level spyware targeted at specific high-value individuals. If you are a journalist, lawyer, activist, or public figure, treat this as a real and active threat.' }
+  },
+  {
+    id:'darksword',
+    icon:'⚔️',
+    name:'DarkSword iOS Exploit Kit',
+    type:'Full-Chain iOS Exploit — Safari / WebKit',
+    severity:95,
+    year:'Documented March 2026 (Google TAG)',
+    platform:['iOS'],
+    badgeColor:'badge-red',
+    badgeLabel:'CRITICAL — Published to GitHub',
+    spread:'Web-based delivery — visiting a malicious URL in Safari is sufficient',
+    victims:'Unpatched iOS 18.4–18.7 devices',
+    how:[
+      'Full-chain exploit targeting iOS 18.4 through 18.7 via a WebKit (Safari engine) vulnerability',
+      'Victim only needs to visit a malicious URL — no app install, no tap, no confirmation',
+      'Exploit chain: WebKit RCE → kernel privilege escalation → sandbox escape → full device control',
+      'Code was published to GitHub in March 2026, democratising state-level iOS exploitation',
+      'Any threat actor capable of hosting a website can now mount an exploitation campaign',
+      'Companion kit Coruna targets the same iOS versions via a different attack surface',
+    ],
+    caps:[
+      'Full device compromise from a single URL visit',
+      'Sandbox escape — breaks iOS app isolation model',
+      'Kernel-level access — complete device control',
+      'Can install any payload: spyware, stalkerware, banking trojan',
+    ],
+    signs:[
+      'Safari crash immediately after visiting an unfamiliar link',
+      'Phone reboots unexpectedly after visiting a URL',
+      'Running iOS 18.4–18.7 and haven\'t updated (you are currently vulnerable)',
+    ],
+    detect:[
+      'There is no reliable way to detect a successful DarkSword exploitation after the fact without forensic tools',
+      'iVerify (App Store) performs iOS integrity checks that may surface anomalies post-exploitation',
+      'If you visited a suspicious link and your phone behaved unusually: factory reset is safest',
+    ],
+    defend:[
+      'UPDATE iOS IMMEDIATELY — the only reliable fix is patching. Check: Settings → General → Software Update',
+      'iOS 18.8+ contains patches for the WebKit vulnerabilities exploited by DarkSword',
+      'Enable Lockdown Mode (Settings → Privacy & Security → Lockdown Mode) — significantly reduces attack surface even on unpatched versions',
+      'Be extremely cautious about URLs shared in messaging apps, emails, or QR codes',
+      'Do not browse to unknown URLs in Safari — use a separate browser with content blocking if you must visit untrusted links',
+    ],
+    permissions:['No permissions — exploits OS at kernel level'],
+    permLevels:['p-crit'],
+    alert:{ type:'red', text:'DarkSword\'s code is now publicly available on GitHub. The barrier to deploying an iOS exploit campaign has collapsed from nation-state resources to anyone with a web server. Updating iOS is not optional.' }
+  },
+];
+
+// ══════════════════════════════════════════════
+// FINGERPRINTER DATA
+// ══════════════════════════════════════════════
+const FP_QUESTIONS = [
+  {
+    q:'What is the most noticeable symptom?',
+    opts:[
+      {label:'Battery draining fast & phone warm when idle', scores:{anubis:2,ahmyth:3,cocospy:2,zerodayrat:3}},
+      {label:'Crypto wallet drained or seed phrase stolen', scores:{sparkcat:4,zerodayrat:3}},
+      {label:'Bank account transactions I didn\'t make', scores:{anatsa:4,anubis:3}},
+      {label:'Someone knows things I only said/typed privately', scores:{cocospy:4,paragon:3,zerodayrat:2}},
+    ]
+  },
+  {
+    q:'When did you last install an app from outside the official store?',
+    opts:[
+      {label:'Recently (Telegram link, SMS link, or website)', scores:{zerodayrat:3,ahmyth:3,anubis:2}},
+      {label:'I installed a "document viewer" or "PDF reader" from Play Store', scores:{anatsa:4}},
+      {label:'I haven\'t — only official stores', scores:{sparkcat:2,paragon:2,darksword:2}},
+      {label:'Someone else had access to my phone recently', scores:{cocospy:4,ahmyth:2}},
+    ]
+  },
+  {
+    q:'What permissions have you recently granted?',
+    opts:[
+      {label:'Photo/gallery access to a new app', scores:{sparkcat:4}},
+      {label:'Accessibility access to a utility or document app', scores:{anatsa:4,anubis:3}},
+      {label:'VPN or device administrator to an unfamiliar app', scores:{zerodayrat:3,anubis:2}},
+      {label:'I haven\'t changed any permissions recently', scores:{paragon:2,darksword:2,cocospy:2}},
+    ]
+  },
+  {
+    q:'What platform are you on?',
+    opts:[
+      {label:'Android — and I side-load apps sometimes', scores:{anubis:2,ahmyth:2,zerodayrat:2}},
+      {label:'Android — only official Play Store', scores:{anatsa:2,sparkcat:2}},
+      {label:'iPhone and I\'m running iOS 18.4–18.7', scores:{darksword:3,sparkcat:2}},
+      {label:'iPhone, latest iOS, but I\'m a journalist / activist / exec', scores:{paragon:4,darksword:2}},
+    ]
+  },
+  {
+    q:'Any unusual network behaviour?',
+    opts:[
+      {label:'Regular small data transfers from apps that shouldn\'t need internet', scores:{zerodayrat:3,ahmyth:3,cocospy:3}},
+      {label:'Firebase or Telegram API traffic from unexpected apps', scores:{zerodayrat:4,ahmyth:3,anubis:3}},
+      {label:'Large unexpected data upload after granting photo access', scores:{sparkcat:4}},
+      {label:'Nothing unusual / I haven\'t checked', scores:{}},
+    ]
+  },
+  {
+    q:'What happened just before you noticed the problem?',
+    opts:[
+      {label:'I clicked a link in a text message or email', scores:{anubis:2,zerodayrat:2,darksword:3}},
+      {label:'My phone was out of my sight / someone else had it', scores:{cocospy:4,ahmyth:2}},
+      {label:'I installed a new app and it asked for many permissions', scores:{ahmyth:3,anubis:2,anatsa:3}},
+      {label:'Nothing specific — I just want to check', scores:{}},
+    ]
+  },
+];
+
+const THREAT_NAMES = {
+  zerodayrat:'ZeroDayRAT',anubis:'Anubis Trojan',ahmyth:'AhMyth RAT',
+  sparkcat:'SparkCat / SparkKitty',anatsa:'Anatsa Dropper',
+  cocospy:'Cocospy / Stalkerware',paragon:'Paragon Graphite',darksword:'DarkSword Exploit'
+};
+const THREAT_DESCS = {
+  zerodayrat:'Commercial spyware sold on Telegram. Your symptoms (RAT-style data exfiltration, crypto theft, regular background uploads) match this family closely.',
+  anubis:'Android banking trojan. Your pattern of accessibility abuse, banking anomalies, or SMS OTP theft points strongly to Anubis or a close variant.',
+  ahmyth:'Android RAT disguised as a legitimate app. Signs point to a trojanised utility app installed from outside Google Play.',
+  sparkcat:'OCR-based cryptostealer. The photo access combined with crypto loss is the signature pattern of SparkCat.',
+  anatsa:'Dropper-based banking trojan from a fake document/PDF app. Your accessibility permission pattern matches this campaign precisely.',
+  cocospy:'Stalkerware installed by someone with physical access. Privacy invasion symptoms with no obvious malicious app suggest this family.',
+  paragon:'State-grade spyware. If you are a journalist, activist or public figure with unexplained surveillance, this is a serious possibility.',
+  darksword:'iOS exploit. A recent Safari visit to an untrusted URL on an unpatched iPhone matches this threat profile.'
+};
+const THREAT_ACTIONS = {
+  zerodayrat:'Immediately: revoke Device Admin access for all apps, check Settings → Security. Factory reset recommended. Switch to authenticator-app 2FA.',
+  anubis:'Immediately: Settings → Accessibility → remove all unrecognised services. Settings → Security → Device Admin Apps → revoke and uninstall.',
+  ahmyth:'Uninstall the app that requested excessive permissions. Run Play Protect scan. Check Accessibility services.',
+  sparkcat:'Grant only "Selected Photos" access, never "All Photos". If you screenshotted a seed phrase: treat that wallet as compromised immediately.',
+  anatsa:'Check Settings → Accessibility for any document app. Uninstall. Check bank statements for unauthorised transactions.',
+  cocospy:'Dial ✱✱001✱✱ → Call. If app appears, contact stopstalkerware.org before removing. Change your iCloud password from a trusted device.',
+  paragon:'Enable iOS Lockdown Mode immediately. Update iOS. Contact iVerify or Amnesty Tech for forensic analysis.',
+  darksword:'Update iOS now: Settings → General → Software Update. Enable Lockdown Mode. If too late: factory reset.'
+};
+
+// ══════════════════════════════════════════════
+// SEVERITY HEATMAP
+// ══════════════════════════════════════════════
+function buildHeatmap() {
+  const grid = document.getElementById('sev-grid');
+  const sorted = [...THREATS].sort((a,b) => b.severity - a.severity);
+  sorted.forEach(t => {
+    const c = t.severity;
+    const color = c >= 95 ? 'var(--red)' : c >= 85 ? 'var(--orange)' : c >= 75 ? 'var(--yellow)' : 'var(--green)';
+    const card = document.createElement('div');
+    card.className = 'sev-card';
+    card.innerHTML = `
+      <div class="sev-score" style="color:${color}">${c}</div>
+      <div class="sev-label">${t.name.split(' ')[0]}</div>
+      <div class="sev-bar" style="background:${color};opacity:${c/100}"></div>`;
+    card.onclick = () => {
+      const el = document.getElementById('tc-'+t.id);
+      if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('open'); }
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════
+// THREAT FEED
+// ══════════════════════════════════════════════
+function buildFeed() {
+  const feed = document.getElementById('threat-feed');
+  THREATS.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'tcard';
+    card.id = 'tc-'+t.id;
+    card.innerHTML = `
+      <div class="tcard-top" onclick="toggleCard(this)">
+        <div class="tc-left">
+          <div class="tc-icon">${t.icon}</div>
+          <div class="tc-info">
+            <div class="tc-name">${t.name}</div>
+            <div class="tc-type">${t.type} · ${t.year}</div>
+          </div>
+        </div>
+        <div class="tc-meta">
+          <div class="badge ${t.badgeColor}">${t.badgeLabel}</div>
+          ${t.platform.map(p => `<div class="badge badge-blue">${p}</div>`).join('')}
+        </div>
+        <span class="tc-chevron">▶</span>
+      </div>
+      <div class="tcard-body">
+        <div class="tcard-divider"></div>
+        ${buildBody(t)}
+      </div>`;
+    feed.appendChild(card);
+  });
+}
+
+function buildBody(t) {
+  let html = `<div class="tc-grid">`;
+  html += `<div class="tc-box"><div class="tb-head orange">How It Works</div><ul class="tc-list how">${t.how.map(h=>`<li>${h}</li>`).join('')}</ul></div>`;
+  html += `<div class="tc-box"><div class="tb-head red">Capabilities</div><ul class="tc-list caps">${t.caps.map(c=>`<li>${c}</li>`).join('')}</ul></div>`;
+  html += `<div class="tc-box"><div class="tb-head yellow">Warning Signs</div><ul class="tc-list signs">${t.signs.map(s=>`<li>${s}</li>`).join('')}</ul></div>`;
+  html += `<div class="tc-box"><div class="tb-head green">Detect & Remove</div><ul class="tc-list detect">${t.detect.map(d=>`<li>${d}</li>`).join('')}</ul></div>`;
+  if(t.defend) html += `<div class="tc-box"><div class="tb-head blue">Defend</div><ul class="tc-list defend">${t.defend.map(d=>`<li>${d}</li>`).join('')}</ul></div>`;
+  if(t.spread) html += `<div class="tc-box"><div class="tb-head purple">Distribution / Scale</div><ul class="tc-list caps"><li><strong>Spread:</strong> ${t.spread}</li>${t.victims?`<li><strong>Scale:</strong> ${t.victims}</li>`:''}</ul></div>`;
+  html += `</div>`;
+  html += `<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text-dim);margin-bottom:7px;">PERMISSIONS / ATTACK SURFACE</div><div class="perm-row">${t.permissions.map((p,i)=>`<span class="ptag ${t.permLevels[i]}">${p}</span>`).join('')}</div></div>`;
+  if(t.alert) html += `<div class="tc-alert ${t.alert.type}"><div class="tc-alert-icon">${t.alert.type==='red'?'🚨':t.alert.type==='yellow'?'⚠️':'💡'}</div><div><strong>${t.alert.type==='red'?'Critical notice:':t.alert.type==='yellow'?'Important:':'Note:'}</strong>${t.alert.text}</div></div>`;
+  return html;
+}
+
+function toggleCard(header){ header.parentElement.classList.toggle('open'); }
+
+// ══════════════════════════════════════════════
+// FINGERPRINTER
+// ══════════════════════════════════════════════
+let fpAnswers = [];
+let fpCurrent = 0;
+
+function buildFingerprinter() {
+  const stages = document.getElementById('fp-stages');
+  const prog = document.getElementById('fp-progress');
+  FP_QUESTIONS.forEach((q,i) => {
+    prog.innerHTML += `<div class="fp-pip${i===0?' active':''}" id="fp-pip-${i}"></div>`;
+    const stage = document.createElement('div');
+    stage.className = 'fp-stage' + (i===0?' active':'');
+    stage.id = 'fp-stage-'+i;
+    stage.innerHTML = `<div class="fp-q"><div class="fp-q-text">Question ${i+1} of ${FP_QUESTIONS.length}: ${q.q}</div>
+      <div class="fp-options">${q.opts.map((o,j)=>`<button class="fp-opt" onclick="fpSelect(${i},${j},this)">${o.label}</button>`).join('')}</div></div>`;
+    stages.appendChild(stage);
+  });
+  document.getElementById('fp-next').style.display = 'inline-flex';
+}
+
+function fpSelect(qi, oi, btn) {
+  document.querySelectorAll(`#fp-stage-${qi} .fp-opt`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  fpAnswers[qi] = oi;
+}
+
+function fpNext() {
+  if(fpAnswers[fpCurrent] === undefined) { alert('Please select an answer before continuing.'); return; }
+  document.getElementById('fp-stage-'+fpCurrent).classList.remove('active');
+  document.getElementById('fp-pip-'+fpCurrent).className = 'fp-pip done';
+  fpCurrent++;
+  if(fpCurrent >= FP_QUESTIONS.length) { fpShowResult(); return; }
+  document.getElementById('fp-stage-'+fpCurrent).classList.add('active');
+  document.getElementById('fp-pip-'+fpCurrent).className = 'fp-pip active';
+  if(fpCurrent === FP_QUESTIONS.length-1) { document.getElementById('fp-next').textContent = 'See Results →'; }
+}
+
+function fpShowResult() {
+  document.getElementById('fp-next').style.display = 'none';
+  const scores = {};
+  FP_QUESTIONS.forEach((q,qi) => {
+    const ans = fpAnswers[qi];
+    if(ans === undefined) return;
+    const opt = q.opts[ans];
+    Object.entries(opt.scores).forEach(([k,v]) => { scores[k] = (scores[k]||0)+v; });
+  });
+  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const result = document.getElementById('fp-result');
+  result.classList.add('show');
+  if(sorted.length === 0) {
+    result.innerHTML = `<div class="fp-match low-match"><div class="fp-match-name">No strong match found</div><div class="fp-match-desc">Your answers don't clearly match a specific family. Run the full device scanner for a deeper check. If you have no symptoms, keep monitoring.</div></div>`;
+    return;
+  }
+  const maxScore = sorted[0][1];
+  const top3 = sorted.slice(0,3).filter(x=>x[1]>0);
+  result.innerHTML = '<div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;font-weight:600;">Based on your answers, the most likely threat families are:</div>';
+  top3.forEach(([k,v],i) => {
+    const pct = Math.round((v/maxScore)*100);
+    const cls = i===0?'high-match':i===1?'med-match':'low-match';
+    const scoreColor = i===0?'var(--red)':i===1?'var(--yellow)':'var(--text-dim)';
+    result.innerHTML += `<div class="fp-match ${cls}">
+      <div class="fp-match-score" style="background:${scoreColor}18;color:${scoreColor};border:1px solid ${scoreColor}30;">${pct}% match</div>
+      <div class="fp-match-name">${THREAT_NAMES[k]}</div>
+      <div class="fp-match-desc">${THREAT_DESCS[k]}</div>
+      <div class="fp-match-action">→ ${THREAT_ACTIONS[k]}</div>
+    </div>`;
+  });
+}
+
+function fpReset() {
+  fpAnswers=[];fpCurrent=0;
+  document.querySelectorAll('.fp-stage').forEach((s,i)=>{ s.classList.toggle('active',i===0); });
+  document.querySelectorAll('.fp-pip').forEach((p,i)=>{ p.className='fp-pip'+(i===0?' active':''); });
+  document.querySelectorAll('.fp-opt').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('fp-result').classList.remove('show');
+  document.getElementById('fp-result').innerHTML='';
+  document.getElementById('fp-next').style.display='inline-flex';
+  document.getElementById('fp-next').textContent='Next →';
+}
+
+// ══════════════════════════════════════════════
+// USSD
+// ══════════════════════════════════════════════
+function markUSSD(id, result) {
+  const el = document.getElementById(id);
+  el.style.display='block';
+  if(result==='found') {
+    el.className='ussd-result danger';
+    el.innerHTML='🚨 <strong>Stalkerware detected.</strong> Do not close or uninstall immediately if you may be in danger. Visit stopstalkerware.org for guidance before taking action.';
+  } else if(result==='clear') {
+    el.className='ussd-result safe';
+    el.innerHTML='✓ Nothing appeared. This code is clear for this stalkerware family.';
+  } else {
+    el.className='ussd-result safe';
+    el.innerHTML='✓ Good — reviewing this information will help you spot monitoring apps.';
+  }
+}
+
+// ══════════════════════════════════════════════
+// SPARKCAT CHECK
+// ══════════════════════════════════════════════
+const SC_QUESTIONS = [
+  'Do you own cryptocurrency or use a hardware/software crypto wallet?',
+  'Have you ever taken a screenshot of your wallet seed phrase (recovery words)?',
+  'Have you installed any AI assistant or chatbot app in the past 6 months?',
+  'Have you granted "All Photos" access to any app that wasn\'t a photo editor or cloud backup?',
+  'Have you noticed any large unexpected data uploads after granting photo permissions?',
+];
+let scAnswers = [];
+
+function buildSparkCatCheck() {
+  const box = document.getElementById('sparkcat-check');
+  box.innerHTML = SC_QUESTIONS.map((q,i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:12px;">
+      <div style="font-size:13px;color:var(--text);flex:1;">${q}</div>
+      <label style="position:relative;width:42px;height:24px;flex-shrink:0;">
+        <input type="checkbox" id="sc${i}" style="opacity:0;width:0;height:0;" onchange="updateSC()">
+        <div onclick="document.getElementById('sc${i}').click()" style="position:absolute;inset:0;border-radius:12px;cursor:pointer;background:var(--border2);transition:background .2s;" id="sct${i}"></div>
+        <div id="sct-thumb-${i}" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none;"></div>
+      </label>
+    </div>`).join('');
+}
+
+function updateSC() {
+  SC_QUESTIONS.forEach((_,i) => {
+    const cb = document.getElementById('sc'+i);
+    document.getElementById('sct'+i).style.background = cb.checked ? 'var(--red)' : 'var(--border2)';
+    document.getElementById('sct-thumb-'+i).style.transform = cb.checked ? 'translateX(18px)' : '';
+  });
+}
+
+function runSparkCheck() {
+  const answers = SC_QUESTIONS.map((_,i) => document.getElementById('sc'+i).checked);
+  const box = document.getElementById('sparkcat-check');
+  let risk = 0;
+  if(answers[0]) risk += 2;
+  if(answers[1]) risk += 4;
+  if(answers[2]) risk += 2;
+  if(answers[3]) risk += 3;
+  if(answers[4]) risk += 3;
+  let html = '';
+  if(answers[1]) {
+    html += `<div class="tc-alert red" style="margin-bottom:10px;"><div class="tc-alert-icon">🚨</div><div><strong>Critical: You have a screenshot of your seed phrase.</strong> If SparkCat has photo access, your wallet is likely compromised. Move funds to a new wallet generated on a clean device immediately.</div></div>`;
+  }
+  if(risk >= 6) {
+    html += `<div class="tc-alert red" style="margin-bottom:10px;"><div class="tc-alert-icon">⚠️</div><div><strong>High SparkCat exposure risk.</strong> Review all apps with photo access: Settings → Privacy → Photos. Revoke "All Photos" access from any non-editor app. If any crypto has gone missing, your seed phrase images were likely stolen.</div></div>`;
+  } else if(risk >= 3) {
+    html += `<div class="tc-alert yellow" style="margin-bottom:10px;"><div class="tc-alert-icon">⚠️</div><div><strong>Medium risk.</strong> Reduce your photo access grants and never screenshot seed phrases. Your crypto is not yet confirmed at risk but take precautions.</div></div>`;
+  } else {
+    html += `<div class="tc-alert green" style="margin-bottom:10px;"><div class="tc-alert-icon">✅</div><div><strong>Low SparkCat risk.</strong> You follow safe practices. Keep photo access permissions minimal and never photograph recovery phrases.</div></div>`;
+  }
+  box.insertAdjacentHTML('beforebegin', html);
+}
+
+function resetSparkCheck() {
+  SC_QUESTIONS.forEach((_,i) => {
+    const cb = document.getElementById('sc'+i);
+    if(cb) { cb.checked=false; updateSC(); }
+  });
+  document.querySelectorAll('.tc-alert').forEach(el => el.parentElement === document.getElementById('sparkcat-check').parentElement && el.remove());
+}
+
+// ══════════════════════════════════════════════
+// PROTECTION MATRIX
+// ══════════════════════════════════════════════
+const PROTECTIONS = [
+  { action:'Update your OS immediately (iOS & Android)', kills:['zerodayrat','anubis','ahmyth','darksword','paragon'], icon:'🔄' },
+  { action:'Switch SMS 2FA → Authenticator app (Authy / Google Authenticator)', kills:['zerodayrat','anubis','anatsa','cocospy'], icon:'🔐' },
+  { action:'Audit Accessibility Services — remove everything unrecognised', kills:['anubis','ahmyth','anatsa'], icon:'♿' },
+  { action:'Revoke "All Photos" access — use "Select Photos" only', kills:['sparkcat'], icon:'📸' },
+  { action:'Enable iOS Lockdown Mode (high-risk individuals)', kills:['paragon','darksword','zerodayrat'], icon:'🔒' },
+  { action:'Install only from official app stores — no Telegram APK links', kills:['zerodayrat','ahmyth','anubis'], icon:'🏪' },
+  { action:'Run Google Play Protect scan now', kills:['anubis','ahmyth','cocospy'], icon:'🛡' },
+  { action:'Never screenshot seed phrases — write them on paper', kills:['sparkcat'], icon:'🌱' },
+  { action:'Dial ✱✱001✱✱ → Call to check for stalkerware', kills:['cocospy'], icon:'📞' },
+  { action:'Use a trusted VPN with kill-switch on public Wi-Fi', kills:['network-mitm','dns-hijack'], icon:'🌐' },
+];
+
+function buildProtectionMatrix() {
+  const wrap = document.getElementById('protect-matrix');
+  PROTECTIONS.sort((a,b)=>b.kills.length-a.kills.length).forEach(p => {
+    const div = document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:8px;';
+    div.innerHTML=`
+      <div style="font-size:20px;flex-shrink:0;">${p.icon}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${p.action}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Neutralises: ${p.kills.map(k=>THREAT_NAMES[k]||k).join(' · ')}</div>
+      </div>
+      <div style="font-size:13px;font-weight:800;color:${p.kills.length>=3?'var(--red)':p.kills.length>=2?'var(--yellow)':'var(--green)'};background:${p.kills.length>=3?'var(--rs)':p.kills.length>=2?'var(--ys)':'var(--gs)'};border-radius:20px;padding:3px 10px;flex-shrink:0;">${p.kills.length} threat${p.kills.length>1?'s':''}</div>`;
+    wrap.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+window.onload = () => {
+  buildHeatmap();
+  buildFeed();
+  buildFingerprinter();
+  buildSparkCatCheck();
+  buildProtectionMatrix();
+};
+</script>
+</body>
+</html>

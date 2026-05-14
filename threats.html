@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShieldScan — Threat Intelligence</title>
+<style>
+:root{
+  --bg:#080c14;--surface:#0d1220;--surface2:#131826;--surface3:#181f30;
+  --border:#1e2535;--border2:#263040;
+  --text:#e2e8f8;--text-muted:#6b7a9e;--text-dim:#36405a;
+  --green:#22d3a0;--green-s:rgba(34,211,160,.1);
+  --yellow:#f5c842;--yellow-s:rgba(245,200,66,.1);
+  --red:#f04060;--red-s:rgba(240,64,96,.1);
+  --blue:#4f8ef5;--blue-s:rgba(79,142,245,.1);
+  --purple:#a78bfa;--purple-s:rgba(167,139,250,.1);
+  --orange:#fb923c;--orange-s:rgba(251,146,60,.1);
+  --r:12px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden;}
+
+/* NAV */
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,12,20,.9);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;display:flex;align-items:center;gap:0;overflow-x:auto;
+}
+.nav-logo{font-size:14px;font-weight:800;color:var(--green);padding:14px 20px 14px 0;border-right:1px solid var(--border);margin-right:4px;white-space:nowrap;text-decoration:none;}
+.nav-link{padding:14px 14px;font-size:13px;font-weight:500;color:var(--text-muted);text-decoration:none;white-space:nowrap;transition:color .15s;border-bottom:2px solid transparent;}
+.nav-link:hover,.nav-link.active{color:var(--text);border-bottom-color:var(--green);}
+.nav-back{margin-left:auto;padding:7px 14px;font-size:12px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-muted);text-decoration:none;white-space:nowrap;transition:all .15s;flex-shrink:0;}
+.nav-back:hover{border-color:var(--green);color:var(--green);}
+
+/* LAYOUT */
+.shell{max-width:980px;margin:0 auto;padding:0 24px 80px;}
+.page-header{padding:48px 0 40px;border-bottom:1px solid var(--border);margin-bottom:48px;}
+.page-tag{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+.page-title{font-size:clamp(28px,5vw,46px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
+.page-title span{background:linear-gradient(135deg,var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.page-sub{font-size:16px;color:var(--text-muted);max-width:600px;line-height:1.65;}
+
+.section-tag{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+.section-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px;}
+.section-sub{font-size:14px;color:var(--text-muted);margin-bottom:24px;max-width:560px;}
+.section-block{margin-bottom:56px;}
+
+/* THREAT CATEGORY HEADERS */
+.cat-header{
+  display:flex;align-items:center;gap:14px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r) var(--r) 0 0;padding:18px 22px;
+  border-bottom:none;
+}
+.cat-icon{font-size:26px;}
+.cat-name{font-size:17px;font-weight:800;letter-spacing:-.3px;}
+.cat-risk{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.risk-critical{background:var(--red-s);color:var(--red);border:1px solid rgba(240,64,96,.2);}
+.risk-high{background:var(--orange-s);color:var(--orange);border:1px solid rgba(251,146,60,.2);}
+.risk-medium{background:var(--yellow-s);color:var(--yellow);border:1px solid rgba(245,200,66,.2);}
+
+/* APP TYPE CARDS */
+.app-types{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:0 0 var(--r) var(--r);margin-bottom:28px;overflow:hidden;
+}
+.app-type{border-bottom:1px solid var(--border);}
+.app-type:last-child{border-bottom:none;}
+.app-type-header{
+  display:flex;align-items:center;gap:14px;padding:16px 22px;
+  cursor:pointer;transition:background .15s;
+}
+.app-type-header:hover{background:var(--surface2);}
+.at-bullet{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.at-name{font-size:14px;font-weight:700;flex:1;}
+.at-vector{font-size:12px;color:var(--text-muted);margin-right:8px;}
+.chevron{color:var(--text-dim);transition:transform .2s;font-size:13px;}
+.app-type.open .chevron{transform:rotate(90deg);}
+.app-type-body{display:none;padding:0 22px 18px 46px;}
+.app-type.open .app-type-body{display:block;}
+
+.at-desc{font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:14px;}
+
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+@media(max-width:580px){.detail-grid{grid-template-columns:1fr;}}
+.detail-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px;}
+.db-label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px;}
+.db-list{list-style:none;}
+.db-list li{font-size:13px;color:var(--text-muted);padding:3px 0;display:flex;gap:8px;}
+.db-list li::before{flex-shrink:0;}
+.how-label .db-label{color:var(--blue);}
+.how-label .db-list li::before{content:'⚙';color:var(--blue);}
+.signs-label .db-label{color:var(--yellow);}
+.signs-label .db-list li::before{content:'⚠';color:var(--yellow);}
+.defend-label .db-label{color:var(--green);}
+.defend-label .db-list li::before{content:'🛡';color:var(--green);}
+.known-label .db-label{color:var(--red);}
+.known-label .db-list li::before{content:'▪';}
+
+.permission-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.perm-tag{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;}
+.perm-critical{background:var(--red-s);color:var(--red);border:1px solid rgba(240,64,96,.2);}
+.perm-high{background:var(--orange-s);color:var(--orange);border:1px solid rgba(251,146,60,.2);}
+.perm-medium{background:var(--yellow-s);color:var(--yellow);border:1px solid rgba(245,200,66,.2);}
+
+/* ── LIVE TOOLS ── */
+.tool-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:28px;}
+.tool-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tool-header h3{font-size:15px;font-weight:700;}
+.tool-header p{font-size:13px;color:var(--text-muted);margin-top:2px;}
+.tool-body{padding:20px 22px;}
+.btn{padding:10px 20px;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:7px;}
+.btn-primary{background:var(--green);color:#050d0a;}
+.btn-primary:hover{background:#2febb5;}
+.btn-red{background:var(--red-s);color:var(--red);border:1px solid rgba(240,64,96,.2);}
+.btn-red:hover{background:rgba(240,64,96,.2);}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--green);color:var(--green);}
+
+/* Bluetooth scanner */
+.bt-status{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:14px;}
+.bt-dot{width:10px;height:10px;border-radius:50%;background:var(--text-dim);flex-shrink:0;}
+.bt-dot.scanning{background:var(--blue);animation:pulse 1s infinite;}
+.bt-dot.found{background:var(--yellow);}
+.bt-dot.safe{background:var(--green);}
+.bt-status-text{font-size:13px;color:var(--text-muted);}
+.bt-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.bt-device{
+  display:flex;align-items:center;gap:12px;padding:11px 14px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);
+}
+.bt-device-icon{font-size:18px;flex-shrink:0;}
+.bt-device-name{font-size:13px;font-weight:600;flex:1;}
+.bt-device-detail{font-size:12px;color:var(--text-muted);}
+.bt-risk-tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+.bt-note{font-size:13px;color:var(--text-muted);line-height:1.55;padding:12px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);}
+
+/* Permission audit */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:14px;}
+.perm-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);}
+.perm-emoji{font-size:16px;flex-shrink:0;}
+.perm-name{font-size:13px;font-weight:500;flex:1;}
+.perm-state{font-size:12px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.ps-granted{background:var(--yellow-s);color:var(--yellow);}
+.ps-denied{background:var(--green-s);color:var(--green);}
+.ps-prompt{background:var(--blue-s);color:var(--blue);}
+.ps-na{background:rgba(100,100,120,.1);color:var(--text-dim);}
+
+/* WebRTC leak */
+.ip-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px;}
+.ip-label{font-size:13px;color:var(--text-muted);}
+.ip-val{font-size:13px;font-weight:600;font-family:'SF Mono','Fira Code',monospace;}
+.ip-flag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:8px;}
+.flag-warn{background:var(--yellow-s);color:var(--yellow);}
+.flag-ok{background:var(--green-s);color:var(--green);}
+.flag-risk{background:var(--red-s);color:var(--red);}
+
+/* Traffic analysis */
+.traffic-bars{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.t-bar-row{display:flex;align-items:center;gap:10px;}
+.t-bar-label{font-size:12px;color:var(--text-muted);width:140px;flex-shrink:0;}
+.t-bar-track{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
+.t-bar-fill{height:100%;border-radius:4px;transition:width 1s ease;}
+.t-bar-val{font-size:12px;font-weight:700;width:42px;text-align:right;flex-shrink:0;}
+
+@media(max-width:600px){.shell{padding:0 14px 60px;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">🛡 ShieldScan</a>
+  <a class="nav-link active" href="#monitoring">Monitoring Apps</a>
+  <a class="nav-link" href="#bluetooth">Bluetooth</a>
+  <a class="nav-link" href="#traffic">Data Traffic</a>
+  <a class="nav-link" href="#tools">Live Tools</a>
+  <a class="nav-back" href="index.html">← Run Scanner</a>
+</nav>
+
+<div class="shell">
+  <div class="page-header">
+    <div class="page-tag">Threat Intelligence</div>
+    <h1 class="page-title">Apps that <span>invade your phone</span></h1>
+    <p class="page-sub">A detailed breakdown of the specific app types used to monitor activity, access files, and intercept traffic — and exactly how to detect and remove each one.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SECTION 1 — PHONE ACTIVITY MONITORING
+  ═══════════════════════════════════════════ -->
+  <div class="section-block" id="monitoring">
+    <div class="section-tag">Category 01</div>
+    <h2 class="section-title">Phone Activity Monitoring Apps</h2>
+    <p class="section-sub">Apps that silently record everything you do — who you call, what you type, where you go, and what you say.</p>
+
+    <div class="cat-header">
+      <div class="cat-icon">📊</div>
+      <div>
+        <div class="cat-name">Activity & Communication Surveillance</div>
+        <div style="margin-top:4px;font-size:13px;color:var(--text-muted);">Targets: calls, SMS, keystrokes, location, screen content</div>
+      </div>
+      <div class="cat-risk risk-critical">CRITICAL</div>
+    </div>
+    <div class="app-types">
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--red)"></div>
+          <div class="at-name">Call & SMS Interceptors</div>
+          <div class="at-vector">Access: CALL_LOG · READ_SMS · RECORD_AUDIO</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">These apps silently log all incoming and outgoing calls (duration, number, recording), read and copy every SMS and MMS message, and upload everything to a remote server. They disguise themselves as "backup", "sync", or "system" utilities.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How they work</div>
+              <ul class="db-list">
+                <li>Register as a CallLog ContentObserver — gets every call event silently</li>
+                <li>Use Android's READ_SMS permission to mirror all incoming messages to a remote number or server</li>
+                <li>On iOS, exploits iCloud backup access or MDM profiles to extract call history</li>
+                <li>Some use RECORD_AUDIO to capture call audio via the phone's microphone directly</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs on your phone</div>
+              <ul class="db-list">
+                <li>Unknown contacts receiving your messages (SMS forwarding)</li>
+                <li>Data usage spike with no new apps or streaming</li>
+                <li>Slight delay before calls connect (interception overhead)</li>
+                <li>Battery draining during idle periods</li>
+                <li>Microphone indicator light appearing unprompted</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">How to detect & remove</div>
+              <ul class="db-list">
+                <li>Settings → Privacy → Permission Manager → Microphone / Phone — revoke anything suspicious</li>
+                <li>Check SMS forwarding: Message app settings → no unfamiliar numbers should be listed</li>
+                <li>Android: Settings → Apps → show system apps — look for duplicates of system names</li>
+                <li>iOS: Settings → General → VPN & Device Management — remove any unknown MDM profiles</li>
+                <li>Factory reset if the app has Device Administrator privileges you can't revoke</li>
+              </ul>
+            </div>
+            <div class="detail-box known-label">
+              <div class="db-label">Known commercial spyware (documented)</div>
+              <ul class="db-list">
+                <li>mSpy — marketed as "parental control", used for partner surveillance</li>
+                <li>FlexiSPY — explicit call interception capability, sold openly</li>
+                <li>Hoverwatch — call log + SMS mirror + location tracker</li>
+                <li>Pegasus (NSO Group) — state-level, zero-click call interception via WhatsApp/iMessage exploit</li>
+              </ul>
+            </div>
+          </div>
+          <div style="margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px;">PERMISSIONS THESE APPS REQUIRE — FLAG THESE</div>
+            <div class="permission-strip">
+              <span class="perm-tag perm-critical">READ_CALL_LOG</span>
+              <span class="perm-tag perm-critical">RECORD_AUDIO</span>
+              <span class="perm-tag perm-critical">READ_SMS</span>
+              <span class="perm-tag perm-high">PROCESS_OUTGOING_CALLS</span>
+              <span class="perm-tag perm-high">RECEIVE_SMS</span>
+              <span class="perm-tag perm-medium">READ_CONTACTS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--orange)"></div>
+          <div class="at-name">Keyloggers & Screen Recorders</div>
+          <div class="at-vector">Access: ACCESSIBILITY · WRITE_SETTINGS · MEDIA_PROJECTION</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">Keyloggers record every keystroke you make — passwords, messages, searches. Screen recorders take continuous screenshots or video of your display. Both abuse Android's Accessibility Service, which was designed for disability access but gives near-total control of the screen and inputs.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How they work</div>
+              <ul class="db-list">
+                <li>Register an AccessibilityService that receives every TYPE, CLICK, and VIEW event</li>
+                <li>Reconstruct typed text character by character, including passwords</li>
+                <li>Use MediaProjection API (Android 5+) to capture the screen at intervals</li>
+                <li>Overlay attacks: draw invisible windows over legitimate apps to capture input before it reaches the real app</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs</div>
+              <ul class="db-list">
+                <li>Accessibility settings show an unfamiliar service enabled</li>
+                <li>Significant CPU usage when you're actively typing</li>
+                <li>Screen sometimes flickers (screenshot capture artifact)</li>
+                <li>App appears in overlay permission list (draw over other apps)</li>
+                <li>Device feels sluggish during input-heavy tasks</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">How to detect & remove</div>
+              <ul class="db-list">
+                <li>Settings → Accessibility → Installed Services — only keep apps you recognise</li>
+                <li>Settings → Apps → (three dots) → Special App Access → Display over other apps — review all</li>
+                <li>Google Play Protect scan: Play Store → Profile icon → Play Protect → Scan</li>
+                <li>On iOS: keyloggers require physical access + jailbreak, or a custom keyboard app granted Full Access — Settings → General → Keyboard → Keyboards → check for unknown keyboards</li>
+              </ul>
+            </div>
+            <div class="detail-box known-label">
+              <div class="db-label">Known examples</div>
+              <ul class="db-list">
+                <li>TouchLogger — exploits motion sensors to infer keystrokes without permission</li>
+                <li>Android/SpyAgent — screen-grabbing RAT disguised as utility apps</li>
+                <li>iKeyMonitor — iOS/Android keylogger sold as parental tool</li>
+                <li>TheTruthSpy — keylogger + GPS + media access sold openly until 2022</li>
+              </ul>
+            </div>
+          </div>
+          <div class="permission-strip" style="margin-top:8px;">
+            <span class="perm-tag perm-critical">BIND_ACCESSIBILITY_SERVICE</span>
+            <span class="perm-tag perm-critical">SYSTEM_ALERT_WINDOW</span>
+            <span class="perm-tag perm-high">MEDIA_PROJECTION</span>
+            <span class="perm-tag perm-medium">WRITE_SECURE_SETTINGS</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--yellow)"></div>
+          <div class="at-name">Silent Location & GPS Trackers</div>
+          <div class="at-vector">Access: ACCESS_FINE_LOCATION · BACKGROUND_LOCATION</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">Apps that continuously track your precise GPS location in the background and report it to a remote server — often without ever appearing in your recent apps list. They use low-power geofencing to stay hidden while still triangulating your position every few minutes.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How they work</div>
+              <ul class="db-list">
+                <li>Request ACCESS_BACKGROUND_LOCATION to track even when app is closed</li>
+                <li>Use WorkManager or AlarmManager to schedule silent location uploads every 2–5 minutes</li>
+                <li>Use cell tower triangulation as fallback when GPS is off (no permission required for coarse location via network)</li>
+                <li>Register BOOT_COMPLETED to restart automatically after phone reboot</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs</div>
+              <ul class="db-list">
+                <li>Location icon in notification bar when you're not using maps</li>
+                <li>Battery drain spike when you leave the house (location polling increases)</li>
+                <li>Unknown app listed under Settings → Location → App permissions → All the time</li>
+                <li>Small regular data transfers to unfamiliar IP ranges</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">How to detect & remove</div>
+              <ul class="db-list">
+                <li>Settings → Location → App permissions → "Allow all the time" — any unfamiliar app here is a red flag</li>
+                <li>iOS: Settings → Privacy → Location Services — look for "Always" permissions on unrecognised apps</li>
+                <li>Turn off location for apps that have no legitimate need for it</li>
+                <li>Use a network monitor app (NetGuard, Little Snitch on iOS) to catch silent uploads</li>
+              </ul>
+            </div>
+            <div class="detail-box known-label">
+              <div class="db-label">Known examples</div>
+              <ul class="db-list">
+                <li>Life360 — legitimate family app, also sold location data to data brokers until 2021</li>
+                <li>Cerberus — anti-theft app repurposed as stalkerware</li>
+                <li>GeoZilla — background tracking, data retention concerns</li>
+                <li>Stalkerware bundles (Android) — often disguised as "Find My Phone" clones</li>
+              </ul>
+            </div>
+          </div>
+          <div class="permission-strip" style="margin-top:8px;">
+            <span class="perm-tag perm-critical">ACCESS_BACKGROUND_LOCATION</span>
+            <span class="perm-tag perm-high">ACCESS_FINE_LOCATION</span>
+            <span class="perm-tag perm-high">RECEIVE_BOOT_COMPLETED</span>
+            <span class="perm-tag perm-medium">FOREGROUND_SERVICE</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /app-types -->
+
+    <!-- FILE ACCESS -->
+    <div class="cat-header" id="fileaccess">
+      <div class="cat-icon">📂</div>
+      <div>
+        <div class="cat-name">File & Data Access Trojans</div>
+        <div style="margin-top:4px;font-size:13px;color:var(--text-muted);">Targets: photos, documents, contacts, app data, credentials</div>
+      </div>
+      <div class="cat-risk risk-high">HIGH</div>
+    </div>
+    <div class="app-types">
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--red)"></div>
+          <div class="at-name">Storage Scrapers (Photos, Docs, Credentials)</div>
+          <div class="at-vector">Access: READ_EXTERNAL_STORAGE · MANAGE_EXTERNAL_STORAGE</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">These apps request broad storage access — often framed as a "cleaner" or "photo editor" — and silently copy your photos, PDFs, documents, and downloaded files to a remote server. On Android 11+ they require MANAGE_EXTERNAL_STORAGE which is a rare permission that should trigger immediate suspicion in any non-file-manager app.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How they work</div>
+              <ul class="db-list">
+                <li>Walk the entire DCIM, Downloads, and Documents directories recursively</li>
+                <li>Filter for high-value files: .pdf, .doc, .xls, .jpg, .png, .key, .p12 (certificate files)</li>
+                <li>Compress and encrypt files before uploading to avoid detection</li>
+                <li>Abuse MediaStore API to access photos without explicit storage permission on some Android versions</li>
+                <li>On iOS: exploit photo library access to enumerate and exfiltrate without triggering obvious prompts</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs</div>
+              <ul class="db-list">
+                <li>Large unexplained data upload (check Settings → Mobile Data → usage per app)</li>
+                <li>"Cleaner" or "utility" app requesting photo / file access</li>
+                <li>App behaviour doesn't match its stated purpose</li>
+                <li>High disk I/O when phone is idle (copying files to temp folder)</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">How to detect & remove</div>
+              <ul class="db-list">
+                <li>Settings → Apps → Special App Access → All files access — only file managers need this</li>
+                <li>Settings → Privacy → Photos — any app with Full Access that isn't a photo editor is suspicious</li>
+                <li>Check data usage: Settings → Network → Data Usage — sort by consumption, look for anomalies</li>
+                <li>Use iOS "App Privacy Report" (Settings → Privacy → App Privacy Report) to see which apps accessed your files</li>
+              </ul>
+            </div>
+            <div class="detail-box known-label">
+              <div class="db-label">Known examples</div>
+              <ul class="db-list">
+                <li>SparkCat (2024) — disguised as AI tools, used OCR to steal crypto seed phrases from photos</li>
+                <li>Android/FakeApp — utility app wrappers that silently exfiltrate document storage</li>
+                <li>Multiple "cleaner" apps removed from Play Store 2022–2024 for mass file collection</li>
+              </ul>
+            </div>
+          </div>
+          <div class="permission-strip" style="margin-top:8px;">
+            <span class="perm-tag perm-critical">MANAGE_EXTERNAL_STORAGE</span>
+            <span class="perm-tag perm-critical">READ_MEDIA_IMAGES</span>
+            <span class="perm-tag perm-high">READ_MEDIA_DOCUMENTS</span>
+            <span class="perm-tag perm-medium">INTERNET</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--orange)"></div>
+          <div class="at-name">Contact & Calendar Harvesters</div>
+          <div class="at-vector">Access: READ_CONTACTS · READ_CALENDAR · GET_ACCOUNTS</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">Harvest your full contact list, calendar events (meeting names, locations, attendees), and linked account list. Sold to data brokers or used to launch highly personalised spear-phishing attacks against you and everyone in your contacts.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How they work</div>
+              <ul class="db-list">
+                <li>Query the ContactsContract ContentProvider — gets names, numbers, emails, addresses of every contact</li>
+                <li>Read calendar entries including private appointment notes and video call links</li>
+                <li>GET_ACCOUNTS lists every account linked to the device (Google, bank apps, social media)</li>
+                <li>Upload silently to ad-tech or surveillance platforms via HTTPS to avoid detection</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">How to detect & remove</div>
+              <ul class="db-list">
+                <li>Settings → Privacy → Contacts — review every app with access. Deny anything that doesn't obviously need it</li>
+                <li>iOS App Privacy Report shows a timeline of which apps accessed contacts and when</li>
+                <li>Revoke GET_ACCOUNTS via adb or in developer options on Android if available</li>
+                <li>Be extremely suspicious of flashlight, wallpaper, or game apps requesting contacts</li>
+              </ul>
+            </div>
+          </div>
+          <div class="permission-strip" style="margin-top:8px;">
+            <span class="perm-tag perm-high">READ_CONTACTS</span>
+            <span class="perm-tag perm-high">READ_CALENDAR</span>
+            <span class="perm-tag perm-high">GET_ACCOUNTS</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /file access app-types -->
+  </div><!-- /section 1 -->
+
+  <!-- ══════════════════════════════════════
+       SECTION 2 — BLUETOOTH
+  ═══════════════════════════════════════════ -->
+  <div class="section-block" id="bluetooth">
+    <div class="section-tag">Category 02</div>
+    <h2 class="section-title">Multi-Layer Bluetooth Attacks</h2>
+    <p class="section-sub">Bluetooth attacks operate invisibly within 10–100m. Modern attacks use relay chains to extend range far beyond what you'd expect.</p>
+
+    <div class="cat-header">
+      <div class="cat-icon">🔵</div>
+      <div>
+        <div class="cat-name">Bluetooth Attack Vectors</div>
+        <div style="margin-top:4px;font-size:13px;color:var(--text-muted);">Range: 10–100m direct · Unlimited with relay chains</div>
+      </div>
+      <div class="cat-risk risk-high">HIGH</div>
+    </div>
+    <div class="app-types">
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--blue)"></div>
+          <div class="at-name">BlueSnarfing — Silent Data Extraction</div>
+          <div class="at-vector">Layer: OBEX protocol · Target: contacts, calendar, files</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">BlueSnarfing exploits the OBEX Object Push protocol in Bluetooth to pull files from your device without pairing or confirmation. It specifically targets contacts (vCard), calendar data (vCal), and documents. Affects devices with Bluetooth left in discoverable or connectable mode.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How the attack works</div>
+              <ul class="db-list">
+                <li>Attacker uses a directional Bluetooth antenna (range up to 100m) to scan for discoverable devices</li>
+                <li>Sends unauthorised OBEX GET requests to pull files via the Object Push service</li>
+                <li>Vulnerable devices respond automatically before the user sees any prompt</li>
+                <li>Attack takes seconds — entire contact book extracted before victim notices</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs</div>
+              <ul class="db-list">
+                <li>Bluetooth connection attempts from unknown devices in pairing list</li>
+                <li>Brief battery/radio activity when phone is idle in a public place</li>
+                <li>Bluetooth "paired devices" list shows an unfamiliar entry</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">Defence</div>
+              <ul class="db-list">
+                <li>Turn Bluetooth OFF when not actively using it — this is the single most effective defence</li>
+                <li>Never leave Bluetooth in "Discoverable" mode in public spaces</li>
+                <li>Keep OS updated — all modern iOS and Android versions have patched OBEX vulnerabilities</li>
+                <li>Review Bluetooth paired devices regularly, remove anything unfamiliar</li>
+              </ul>
+            </div>
+            <div class="detail-box known-label">
+              <div class="db-label">Attack variants</div>
+              <ul class="db-list">
+                <li>BlueJacking — unsolicited message injection (annoying but lower risk)</li>
+                <li>BlueBugging — full device command access via AT command injection</li>
+                <li>KNOB Attack (CVE-2019-9506) — key negotiation downgrade to brute-forceable 1-byte entropy</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--purple)"></div>
+          <div class="at-name">Bluetooth MITM & Relay Attacks (Multi-Layer)</div>
+          <div class="at-vector">Layer: L2CAP / RFCOMM · Extended range via relay nodes</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">Multi-layer Bluetooth relay attacks use a chain of compromised or attacker-controlled devices to extend an attack far beyond the physical Bluetooth range. This is especially used against keyless entry systems, Bluetooth payment terminals, and car unlocking — but the same technique applies to phone-to-device Bluetooth bridges.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How multi-layer relay works</div>
+              <ul class="db-list">
+                <li><strong>Layer 1 (proximity node):</strong> A small device placed near your phone picks up your Bluetooth signal</li>
+                <li><strong>Layer 2 (relay):</strong> That signal is forwarded over Wi-Fi or cellular to a second device near the target system</li>
+                <li><strong>Layer 3 (exploit node):</strong> The second device replays your Bluetooth identity to impersonate you — unlocking a car, approving a payment, or pairing with a trusted device</li>
+                <li>The phone reports a "successful" connection — you never know the relay happened</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs</div>
+              <ul class="db-list">
+                <li>Car unlocked or device connected when you weren't near it</li>
+                <li>Bluetooth pairing confirmations for devices you don't recognise</li>
+                <li>Payment or access event logs showing activity you didn't initiate</li>
+                <li>Unfamiliar Bluetooth device names that appear periodically in public areas</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">Defence</div>
+              <ul class="db-list">
+                <li>Use Ultra-Wideband (UWB) proximity verification where available (iPhone 11+, Samsung S21+)</li>
+                <li>Enable "require PIN" for all Bluetooth pairings</li>
+                <li>Keep Bluetooth off at rest — relay attacks require your device to be broadcasting</li>
+                <li>For cars: use a Faraday pouch for key fobs; for phone BT, same rule: off when not in use</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--yellow)"></div>
+          <div class="at-name">BLE (Bluetooth Low Energy) Tracking & Fingerprinting</div>
+          <div class="at-vector">Layer: BLE advertising packets · Passive, no pairing needed</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">Even without a direct connection, your phone's BLE advertising beacons can be used to track your physical movements across a space. Retailers, venues, and surveillance operators deploy fixed BLE scanners that log your device's MAC address as you walk past — building a movement profile over time.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How it works</div>
+              <ul class="db-list">
+                <li>Your phone constantly broadcasts BLE advertising packets when Bluetooth is enabled</li>
+                <li>These packets historically contained a stable MAC address — uniquely fingerprinting your device</li>
+                <li>A network of cheap BLE scanners (£5 each) can map your path through a building or city</li>
+                <li>Modern Android/iOS randomise MAC addresses — but timing and packet structure can still fingerprint devices</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">Defence</div>
+              <ul class="db-list">
+                <li>Ensure your device uses BLE MAC randomisation (Android 8+, iOS 14+ do this by default)</li>
+                <li>Turn Bluetooth off in high-security environments (protests, sensitive meetings, border crossings)</li>
+                <li>Settings → Bluetooth → check "Randomise MAC address" is enabled per network if your device shows this option</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /bluetooth app-types -->
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SECTION 3 — DATA TRAFFIC
+  ═══════════════════════════════════════════ -->
+  <div class="section-block" id="traffic">
+    <div class="section-tag">Category 03</div>
+    <h2 class="section-title">Data Traffic Interception & Injection</h2>
+    <p class="section-sub">Attacks that sit between your phone and the internet — reading, modifying, or rerouting your traffic in real time.</p>
+
+    <div class="cat-header">
+      <div class="cat-icon">🕸️</div>
+      <div>
+        <div class="cat-name">Network-Layer Attack Vectors</div>
+        <div style="margin-top:4px;font-size:13px;color:var(--text-muted);">Targets: credentials, session tokens, DNS, app traffic</div>
+      </div>
+      <div class="cat-risk risk-critical">CRITICAL</div>
+    </div>
+    <div class="app-types">
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--red)"></div>
+          <div class="at-name">Rogue VPN Apps (Traffic Harvesting)</div>
+          <div class="at-vector">Access: VPN permission · Full traffic visibility</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">Free VPN apps are the most dangerous category in app stores. When you grant VPN permission, the app can see 100% of your unencrypted and DNS traffic. Hundreds of free VPN apps have been documented logging and selling user traffic, injecting ads, or acting as full surveillance tools.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">How they work</div>
+              <ul class="db-list">
+                <li>Android VPN permission creates a virtual tunnel — all traffic goes through the app before the internet</li>
+                <li>SSL/TLS traffic from HTTPS sites is still encrypted end-to-end but DNS queries reveal every site you visit</li>
+                <li>App can log: all URLs visited, all unencrypted HTTP content, all DNS lookups, app-level traffic patterns</li>
+                <li>Some inject a root certificate to perform a full TLS MITM — breaking HTTPS encryption entirely</li>
+              </ul>
+            </div>
+            <div class="detail-box signs-label">
+              <div class="db-label">Warning signs</div>
+              <ul class="db-list">
+                <li>VPN key icon always visible in status bar even when you didn't activate it</li>
+                <li>App installed itself as a VPN without you requesting it</li>
+                <li>An app that isn't a VPN has requested VPN permission</li>
+                <li>Unexpected certificate warnings from sites that normally load cleanly</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">Defence</div>
+              <ul class="db-list">
+                <li>Only use VPNs from verified providers with public no-log audits (Mullvad, ProtonVPN)</li>
+                <li>Settings → VPN → check which app is connected; revoke VPN permission from anything suspicious</li>
+                <li>Settings → Security → Trusted Credentials → User tab — delete any certificate you didn't install</li>
+                <li>Never install a VPN app from an ad, SMS link, or non-official store</li>
+              </ul>
+            </div>
+          </div>
+          <div class="permission-strip" style="margin-top:8px;">
+            <span class="perm-tag perm-critical">BIND_VPN_SERVICE</span>
+            <span class="perm-tag perm-critical">INSTALL_PACKAGES (some)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--orange)"></div>
+          <div class="at-name">Evil Twin & ARP Spoofing (Wi-Fi Layer)</div>
+          <div class="at-vector">Layer: 802.11 / ARP · No app needed — network-level attack</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">An attacker sets up a Wi-Fi hotspot with the same name (SSID) as a legitimate network — your phone automatically connects to whichever has stronger signal. All your traffic then flows through the attacker's device. ARP spoofing does the same on an existing network by poisoning the network's routing table.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">Attack layers</div>
+              <ul class="db-list">
+                <li><strong>Layer 1 (Evil Twin):</strong> Clone a known SSID (e.g. "Starbucks Free WiFi"), broadcast stronger signal, capture all connections</li>
+                <li><strong>Layer 2 (ARP Poison):</strong> Send fake ARP replies claiming the attacker's MAC is the router — all devices route through attacker</li>
+                <li><strong>Layer 3 (SSL Strip):</strong> Downgrade HTTPS connections to HTTP for sites that don't enforce HSTS, capturing plaintext credentials</li>
+                <li><strong>Layer 4 (DNS hijack):</strong> Redirect DNS queries to attacker-controlled server, sending users to phishing clones</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">Defence</div>
+              <ul class="db-list">
+                <li>Use a trusted VPN on all public Wi-Fi — this encrypts traffic before it reaches the router</li>
+                <li>Disable "Auto-join" for public Wi-Fi networks you don't control</li>
+                <li>Check URL bar carefully — SSL stripping turns https:// to http://</li>
+                <li>Enable DNS-over-HTTPS in your browser (Chrome/Firefox settings) to prevent DNS hijack</li>
+                <li>On iOS: Settings → Wi-Fi → (network name) → turn off "Auto-Join" for saved public networks</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-type">
+        <div class="app-type-header" onclick="toggleType(this)">
+          <div class="at-bullet" style="background:var(--purple)"></div>
+          <div class="at-name">SS7 Protocol Exploitation (Carrier Level)</div>
+          <div class="at-vector">Layer: Telecom signalling network · Carrier-level access required</div>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="app-type-body">
+          <p class="at-desc">SS7 (Signalling System No. 7) is the 1970s protocol that connects all the world's phone networks. It has no authentication. Anyone with access to an SS7 node (a telecom company, state actor, or purchased dark web access) can intercept any SMS message or phone call on earth — including your 2FA codes.</p>
+          <div class="detail-grid">
+            <div class="detail-box how-label">
+              <div class="db-label">What attackers can do via SS7</div>
+              <ul class="db-list">
+                <li>Intercept all SMS messages to your number — including bank OTPs and 2FA codes</li>
+                <li>Forward your calls to another number without you knowing</li>
+                <li>Track your rough location via cell tower triangulation globally</li>
+                <li>No app required, no physical access — purely a signalling network exploit</li>
+              </ul>
+            </div>
+            <div class="detail-box defend-label">
+              <div class="db-label">Defence</div>
+              <ul class="db-list">
+                <li>Stop using SMS for 2FA — switch to an authenticator app (Authy, Google Authenticator, or hardware key)</li>
+                <li>Use end-to-end encrypted messaging (Signal) instead of SMS for sensitive communications</li>
+                <li>You cannot prevent SS7 attacks at the device level — the fix is not using SMS as a security channel</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /traffic app-types -->
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SECTION 4 — LIVE TOOLS
+  ═══════════════════════════════════════════ -->
+  <div class="section-block" id="tools">
+    <div class="section-tag">Live Detection Tools</div>
+    <h2 class="section-title">Run Checks Now</h2>
+    <p class="section-sub">These tools use your browser's APIs to check for specific threat indicators on your current device and connection.</p>
+
+    <!-- Bluetooth Scanner -->
+    <div class="tool-wrap">
+      <div class="tool-header">
+        <div>
+          <h3>🔵 Bluetooth Device Scanner</h3>
+          <p>Scans for nearby Bluetooth devices and flags unknown or potentially suspicious names. Requires your permission.</p>
+        </div>
+      </div>
+      <div class="tool-body">
+        <div class="bt-status" id="bt-status">
+          <div class="bt-dot" id="bt-dot"></div>
+          <div class="bt-status-text" id="bt-status-text">Press Scan to search for nearby Bluetooth devices. You will be shown a browser permission prompt.</div>
+        </div>
+        <div class="bt-list" id="bt-list"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <button class="btn btn-primary" onclick="scanBluetooth()">🔍 Scan for Devices</button>
+          <button class="btn btn-ghost" onclick="clearBT()">Clear</button>
+        </div>
+        <div class="bt-note">
+          <strong style="color:var(--text);">What to watch for:</strong> Device names like "Unknown", random strings of letters/numbers, or names that mimic trusted devices (e.g. "AirPods Pro" when you don't own them). Persistent unknown devices appearing in the same location over multiple days are a strong indicator of a surveillance node. The Web Bluetooth API shows one device per scan — run multiple times to build a picture.
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Permission Audit -->
+    <div class="tool-wrap">
+      <div class="tool-header">
+        <div>
+          <h3>🔐 Full Permission Audit</h3>
+          <p>Checks all sensitive browser-accessible permissions for this device context.</p>
+        </div>
+      </div>
+      <div class="tool-body">
+        <div class="perm-grid" id="perm-grid">
+          <div style="font-size:13px;color:var(--text-muted);">Press Audit to check all permissions.</div>
+        </div>
+        <button class="btn btn-primary" onclick="auditPermissions()">🔐 Audit Permissions</button>
+        <div style="margin-top:12px;font-size:13px;color:var(--text-muted);line-height:1.55;">
+          <strong style="color:var(--yellow);">Granted = review needed.</strong> Any permission showing as Granted that you didn't intentionally give to a specific trusted app is a red flag. Go to your device Settings → Privacy → and revoke it from any unrecognised source.
+        </div>
+      </div>
+    </div>
+
+    <!-- WebRTC IP Leak -->
+    <div class="tool-wrap">
+      <div class="tool-header">
+        <div>
+          <h3>🌐 WebRTC IP Leak Test</h3>
+          <p>Checks whether your real IP address is being leaked even if you're using a VPN — a common flaw in privacy setups.</p>
+        </div>
+      </div>
+      <div class="tool-body">
+        <div id="webrtc-rows">
+          <div style="font-size:13px;color:var(--text-muted);">Press Run Test to check for IP leaks.</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="runWebRTC()">🌐 Run Leak Test</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('webrtc-rows').innerHTML='<div style=\'font-size:13px;color:var(--text-muted);\'>Press Run Test to check for IP leaks.</div>'">Clear</button>
+        </div>
+        <div style="margin-top:12px;font-size:13px;color:var(--text-muted);line-height:1.55;">
+          If you see a <strong style="color:var(--red);">Local IP</strong> that looks like <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">192.168.x.x</code> or <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">10.x.x.x</code>, that's your real internal network. If you see a <strong style="color:var(--red);">Public IP</strong> while using a VPN, your VPN is leaking your real location to every website you visit.
+        </div>
+      </div>
+    </div>
+
+    <!-- Traffic Pattern Analyser -->
+    <div class="tool-wrap">
+      <div class="tool-header">
+        <div>
+          <h3>📊 Connection Traffic Profile</h3>
+          <p>Analyses your current connection characteristics to flag indicators of interception or routing anomalies.</p>
+        </div>
+      </div>
+      <div class="tool-body">
+        <div id="traffic-output">
+          <div style="font-size:13px;color:var(--text-muted);">Press Analyse to profile your connection.</div>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="analyseTraffic()">📊 Analyse Connection</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tools section -->
+</div><!-- /shell -->
+
+<footer style="text-align:center;padding:32px 24px;border-top:1px solid var(--border);color:var(--text-dim);font-size:12px;">
+  ShieldScan Threat Intelligence · All checks run locally in your browser · No data is sent to any server ·
+  <a href="index.html" style="color:var(--text-muted);text-decoration:none;">← Return to scanner</a>
+</footer>
+
+<script>
+// ── ACCORDION ────────────────────────────────────
+function toggleType(header) {
+  header.parentElement.classList.toggle('open');
+}
+
+// ── BLUETOOTH SCAN ───────────────────────────────
+const SUSPICIOUS_BT_PATTERNS = [
+  /^[A-F0-9]{2}(:[A-F0-9]{2}){5}$/i, // raw MAC address
+  /unknown/i,
+  /^[a-z0-9]{8,}$/i, // random hex-like string
+  /spy|track|monitor|hidden|probe/i,
+];
+
+const KNOWN_SAFE_PATTERNS = [
+  /airpods/i, /galaxy buds/i, /bose/i, /sony/i, /jabra/i, /apple/i,
+  /keyboard/i, /mouse/i, /magic/i, /logitech/i, /beats/i,
+];
+
+function getBTRisk(name) {
+  if (!name || name === 'Unknown') return 'high';
+  for (const p of SUSPICIOUS_BT_PATTERNS) if (p.test(name)) return 'high';
+  for (const p of KNOWN_SAFE_PATTERNS) if (p.test(name)) return 'safe';
+  return 'medium';
+}
+
+async function scanBluetooth() {
+  const statusEl = document.getElementById('bt-status-text');
+  const dot = document.getElementById('bt-dot');
+  const list = document.getElementById('bt-list');
+
+  if (!navigator.bluetooth) {
+    statusEl.textContent = 'Web Bluetooth is not available on this browser/OS. Use Chrome on Android or Windows for Bluetooth scanning.';
+    return;
+  }
+
+  dot.className = 'bt-dot scanning';
+  statusEl.textContent = 'Scanning — a browser prompt will appear. Select any device to identify it.';
+
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: []
+    });
+
+    const name = device.name || 'Unknown device';
+    const risk = getBTRisk(name);
+    const riskColor = risk === 'high' ? 'var(--red)' : risk === 'medium' ? 'var(--yellow)' : 'var(--green)';
+    const riskLabel = risk === 'high' ? 'Suspicious' : risk === 'medium' ? 'Unknown' : 'Known safe';
+
+    const item = document.createElement('div');
+    item.className = 'bt-device';
+    item.innerHTML = `
+      <div class="bt-device-icon">${risk === 'high' ? '⚠️' : risk === 'medium' ? '❓' : '✅'}</div>
+      <div>
+        <div class="bt-device-name">${name}</div>
+        <div class="bt-device-detail">ID: ${device.id ? device.id.substring(0,12) + '…' : 'n/a'}</div>
+      </div>
+      <div class="bt-risk-tag" style="background:${riskColor}18;color:${riskColor};border:1px solid ${riskColor}30;">${riskLabel}</div>`;
+    list.appendChild(item);
+
+    dot.className = 'bt-dot found';
+    statusEl.textContent = `Found: "${name}" — ${risk === 'high' ? 'Suspicious profile. See details below.' : risk === 'medium' ? 'Unknown device. Scan again to find more.' : 'Recognised device type.'}  Run scan again to find more devices.`;
+
+  } catch(e) {
+    dot.className = 'bt-dot';
+    if (e.name === 'NotFoundError') {
+      statusEl.textContent = 'No device selected or no devices found nearby.';
+    } else if (e.name === 'SecurityError') {
+      statusEl.textContent = 'Bluetooth permission denied.';
+    } else {
+      statusEl.textContent = `Scan error: ${e.message}`;
+    }
+  }
+}
+
+function clearBT() {
+  document.getElementById('bt-list').innerHTML = '';
+  document.getElementById('bt-dot').className = 'bt-dot';
+  document.getElementById('bt-status-text').textContent = 'Press Scan to search for nearby Bluetooth devices.';
+}
+
+// ── PERMISSION AUDIT ─────────────────────────────
+const PERMISSIONS_TO_CHECK = [
+  { name:'camera',         icon:'📷', label:'Camera' },
+  { name:'microphone',     icon:'🎙️', label:'Microphone' },
+  { name:'geolocation',    icon:'📍', label:'Location' },
+  { name:'notifications',  icon:'🔔', label:'Notifications' },
+  { name:'clipboard-read', icon:'📋', label:'Clipboard Read' },
+  { name:'clipboard-write',icon:'✏️', label:'Clipboard Write' },
+];
+
+async function auditPermissions() {
+  const grid = document.getElementById('perm-grid');
+  grid.innerHTML = '';
+
+  for (const p of PERMISSIONS_TO_CHECK) {
+    let state = 'n/a';
+    try {
+      const result = await navigator.permissions.query({ name: p.name });
+      state = result.state; // 'granted', 'denied', 'prompt'
+    } catch(e) { state = 'n/a'; }
+
+    const cls = state === 'granted' ? 'ps-granted' : state === 'denied' ? 'ps-denied' : state === 'prompt' ? 'ps-prompt' : 'ps-na';
+    const label = state === 'granted' ? '⚠ Granted' : state === 'denied' ? '✓ Blocked' : state === 'prompt' ? 'Not asked' : 'Unavailable';
+
+    const row = document.createElement('div');
+    row.className = 'perm-row';
+    row.innerHTML = `
+      <div class="perm-emoji">${p.icon}</div>
+      <div class="perm-name">${p.label}</div>
+      <div class="perm-state ${cls}">${label}</div>`;
+    grid.appendChild(row);
+  }
+}
+
+// ── WEBRTC LEAK TEST ──────────────────────────────
+function runWebRTC() {
+  const out = document.getElementById('webrtc-rows');
+  out.innerHTML = '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Gathering IP candidates…</div>';
+
+  const ips = { local: new Set(), public: new Set() };
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  pc.createDataChannel('');
+  pc.createOffer().then(o => pc.setLocalDescription(o));
+
+  pc.onicecandidate = (e) => {
+    if (!e || !e.candidate) {
+      pc.close();
+      renderIPs(ips, out);
+      return;
+    }
+    const parts = e.candidate.candidate.split(' ');
+    const ip = parts[4];
+    if (!ip) return;
+    if (ip.startsWith('192.168') || ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('fd') || ip.startsWith('fe80')) {
+      ips.local.add(ip);
+    } else if (ip !== '0.0.0.0') {
+      ips.public.add(ip);
+    }
+  };
+
+  setTimeout(() => { if (!pc.connectionState || pc.connectionState !== 'closed') { pc.close(); renderIPs(ips, out); } }, 5000);
+}
+
+function renderIPs(ips, out) {
+  out.innerHTML = '';
+
+  if (ips.local.size === 0 && ips.public.size === 0) {
+    out.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">No IP candidates gathered — WebRTC may be blocked by your browser settings or OS firewall.</div>';
+    return;
+  }
+
+  ips.local.forEach(ip => {
+    out.innerHTML += `<div class="ip-row"><span class="ip-label">Local / Internal IP</span><span class="ip-val">${ip}<span class="ip-flag flag-warn">Exposed to sites</span></span></div>`;
+  });
+
+  ips.public.forEach(ip => {
+    out.innerHTML += `<div class="ip-row"><span class="ip-label">Public IP</span><span class="ip-val">${ip}<span class="ip-flag flag-risk">Real location visible</span></span></div>`;
+  });
+
+  if (ips.public.size === 0) {
+    out.innerHTML += `<div class="ip-row" style="border-color:rgba(34,211,160,.2);"><span class="ip-label">Public IP</span><span class="ip-val" style="color:var(--green);">Not leaked<span class="ip-flag flag-ok">Protected</span></span></div>`;
+  }
+
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:13px;color:var(--text-muted);margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);line-height:1.55;';
+  if (ips.public.size > 0) {
+    note.innerHTML = '<strong style="color:var(--yellow);">⚠ Your real public IP is exposed.</strong> If you are using a VPN, it is leaking. Disable WebRTC in your browser settings or use a VPN with a WebRTC kill switch.';
+  } else {
+    note.innerHTML = '<strong style="color:var(--green);">✓ No public IP leak detected.</strong> Only internal network IPs are visible — this is expected and normal.';
+  }
+  out.appendChild(note);
+}
+
+// ── TRAFFIC ANALYSER ──────────────────────────────
+async function analyseTraffic() {
+  const out = document.getElementById('traffic-output');
+  out.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Analysing…</div>';
+
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const isHTTPS = location.protocol === 'https:';
+  const ua = navigator.userAgent;
+  const isMobile = /iPhone|iPad|Android/i.test(ua);
+  const isOnline = navigator.onLine;
+
+  const timings = performance.getEntriesByType('navigation')[0];
+  const dnsTime = timings ? Math.round(timings.domainLookupEnd - timings.domainLookupStart) : null;
+  const tcpTime = timings ? Math.round(timings.connectEnd - timings.connectStart) : null;
+  const tlsTime = timings ? Math.round(timings.requestStart - timings.secureConnectionStart) : null;
+
+  await new Promise(r => setTimeout(r, 600));
+
+  let html = '<div class="traffic-bars">';
+
+  const addBar = (label, value, max, color, unit) => {
+    const pct = Math.min(100, Math.round((value / max) * 100));
+    html += `<div class="t-bar-row">
+      <div class="t-bar-label">${label}</div>
+      <div class="t-bar-track"><div class="t-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="t-bar-val" style="color:${color}">${value}${unit}</div>
+    </div>`;
+  };
+
+  if (dnsTime !== null) addBar('DNS lookup time', dnsTime, 500, dnsTime > 100 ? 'var(--yellow)' : 'var(--green)', 'ms');
+  if (tcpTime !== null) addBar('TCP connect time', tcpTime, 500, tcpTime > 150 ? 'var(--yellow)' : 'var(--green)', 'ms');
+  if (tlsTime !== null && tlsTime > 0) addBar('TLS handshake', tlsTime, 500, tlsTime > 200 ? 'var(--yellow)' : 'var(--green)', 'ms');
+  if (conn && conn.rtt) addBar('Round-trip latency', conn.rtt, 500, conn.rtt > 200 ? 'var(--red)' : conn.rtt > 100 ? 'var(--yellow)' : 'var(--green)', 'ms');
+  if (conn && conn.downlink) addBar('Downlink speed', conn.downlink, 100, conn.downlink < 1 ? 'var(--red)' : 'var(--green)', 'Mb/s');
+
+  html += '</div>';
+
+  const rows = [];
+  rows.push({ icon: isHTTPS ? '✅' : '❌', label: 'Transport encryption', val: isHTTPS ? 'HTTPS active' : 'HTTP — no encryption', color: isHTTPS ? 'var(--green)' : 'var(--red)' });
+  rows.push({ icon: '📱', label: 'Device type', val: isMobile ? 'Mobile device' : 'Desktop / laptop', color: 'var(--text-muted)' });
+  rows.push({ icon: conn?.type === 'wifi' ? '⚠️' : '✅', label: 'Connection medium', val: conn ? (conn.type || conn.effectiveType || 'Unknown') : 'Not available', color: conn?.type === 'wifi' ? 'var(--yellow)' : 'var(--green)' });
+  rows.push({ icon: isOnline ? '✅' : '❌', label: 'Network reachability', val: isOnline ? 'Online' : 'Offline', color: isOnline ? 'var(--green)' : 'var(--red)' });
+
+  if (dnsTime !== null && dnsTime > 200) {
+    rows.push({ icon: '⚠️', label: 'DNS anomaly', val: `Unusually slow DNS (${dnsTime}ms) — possible DNS hijack or interception overhead`, color: 'var(--yellow)' });
+  }
+  if (conn && conn.rtt > 300) {
+    rows.push({ icon: '⚠️', label: 'High latency', val: `RTT ${conn.rtt}ms — possible proxy or VPN relay in path`, color: 'var(--yellow)' });
+  }
+
+  html += rows.map(r => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+      <span style="font-size:15px;">${r.icon}</span>
+      <div style="flex:1;">
+        <div style="font-size:12px;color:var(--text-dim);font-weight:700;letter-spacing:.4px;">${r.label.toUpperCase()}</div>
+        <div style="font-size:13px;color:${r.color};margin-top:2px;">${r.val}</div>
+      </div>
+    </div>`).join('');
+
+  out.innerHTML = html;
+}
+</script>
+</body>
+</html>
